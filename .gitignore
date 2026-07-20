@@ -1,0 +1,18 @@
+# dependencies & build output
+node_modules
+out
+dist
+
+# logs & local run artifacts
+*.log
+*-log.txt
+
+# TypeScript incremental build info
+*.tsbuildinfo
+
+# local agent / editor settings
+.claude/
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,37 @@
+appId: com.aleksandrjukovjava.jirawidget
+productName: Jira Widget
+directories:
+  buildResources: build
+  output: dist
+files:
+  - '!**/.vscode/*'
+  - '!src/*'
+  - '!electron.vite.config.{js,ts,mjs,cjs}'
+  - '!{.eslintrc,.prettierrc,tsconfig.json,tsconfig.*.json}'
+asarUnpack:
+  - resources/**
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  artifactName: ${productName}-${version}-setup.${ext}
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  shortcutName: Jira Widget
+  # Never auto-launch the app from the (silent) installer: that instance is parented to the
+  # installer → cmd → Task Scheduler console, so it dies when that console closes. We launch
+  # the widget ourselves, detached, via a Task Scheduler action pointing straight at the exe.
+  runAfterFinish: false
+# Update feed + release target. electron-updater reads the app-update.yml generated from this;
+# the release workflow uploads latest.yml + the installer here on a `v*` tag push.
+publish:
+  provider: github
+  owner: AleksandrZhukovJava
+  repo: WorkWidget
+  # Publish the release immediately (not a draft) so electron-updater can see it.
+  releaseType: release
+npmRebuild: true

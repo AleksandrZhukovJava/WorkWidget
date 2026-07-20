@@ -1,0 +1,35 @@
+name: 🐞 Баг
+description: Что-то работает не так, как ожидалось
+labels: ["type: bug"]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: Что произошло
+      description: Опишите проблему и что вы ожидали увидеть
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Шаги воспроизведения
+      placeholder: |
+        1. Открыть …
+        2. Нажать …
+        3. Видно ошибку …
+    validations:
+      required: false
+  - type: input
+    id: version
+    attributes:
+      label: Версия виджета
+      description: Настройки → о программе / номер релиза (напр. v0.2.0)
+    validations:
+      required: false
+  - type: textarea
+    id: extra
+    attributes:
+      label: Логи / скриншоты
+      description: Скриншоты, текст ошибки, что угодно полезное
+    validations:
+      required: false

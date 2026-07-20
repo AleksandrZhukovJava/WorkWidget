@@ -1,0 +1,32 @@
+name: ✨ Идея / доработка
+description: Предложить новую функцию или улучшение
+labels: ["type: feature"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Задача / проблема
+      description: Что хочется решить или улучшить и зачем
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Предлагаемое решение
+      description: Как вы это видите (по желанию)
+    validations:
+      required: false
+  - type: dropdown
+    id: area
+    attributes:
+      label: Область
+      options:
+        - widget
+        - panel
+        - jira
+        - gitlab
+        - coder
+        - build
+        - другое
+    validations:
+      required: false

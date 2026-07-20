@@ -1,0 +1,19 @@
+name: Labels
+
+# Sync repository labels from .github/labels.yml. Run manually from the Actions tab
+# (Run workflow) whenever labels.yml changes. Uses GITHUB_TOKEN — no local gh needed.
+on:
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+jobs:
+  labeler:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: crazy-max/ghaction-github-labeler@v5
+        with:
+          yaml-file: .github/labels.yml
+          skip-delete: true # keep any extra labels created by hand

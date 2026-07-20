@@ -1,0 +1,44 @@
+{
+  "name": "jira-widget",
+  "version": "0.1.1",
+  "description": "Десктопный виджет для Jira (Server/DC): мои задачи, переходы статусов, комментарии, JSM SLA, интеграция с GitLab",
+  "main": "./out/main/index.js",
+  "author": "aleksandrjukovjava",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AleksandrZhukovJava/WorkWidget.git"
+  },
+  "scripts": {
+    "dev": "electron-vite dev",
+    "dev:web": "vite --config vite.web.config.ts",
+    "build": "npm run typecheck && electron-vite build && electron-builder",
+    "build:dir": "npm run typecheck && electron-vite build && electron-builder --dir",
+    "build:unpack": "electron-vite build",
+    "typecheck:node": "tsc --noEmit -p tsconfig.node.json",
+    "typecheck:web": "tsc --noEmit -p tsconfig.web.json",
+    "typecheck": "npm run typecheck:node && npm run typecheck:web",
+    "start": "electron-vite preview",
+    "release:patch": "npm version patch -m \"chore(release): v%s\"",
+    "release:minor": "npm version minor -m \"chore(release): v%s\"",
+    "release:major": "npm version major -m \"chore(release): v%s\""
+  },
+  "dependencies": {
+    "@napi-rs/keyring": "^1.1.7",
+    "electron-store": "^8.2.0",
+    "electron-updater": "^6.3.9"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8",
+    "electron-vite": "^2.3.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "typescript": "^5.7.2",
+    "vite": "^5.4.11"
+  }
+}

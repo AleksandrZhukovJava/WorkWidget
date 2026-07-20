@@ -1,0 +1,52 @@
+# Source of truth for repo labels. Sync via the "Labels" workflow (Actions → Run workflow).
+# Format: crazy-max/ghaction-github-labeler.
+
+# --- type ---
+- name: "type: bug"
+  color: d73a4a
+  description: Ошибка — работает не так, как надо
+- name: "type: feature"
+  color: 0e8a16
+  description: Новая функциональность
+- name: "type: chore"
+  color: fef2c0
+  description: Рутина, инфраструктура, зависимости
+- name: "type: docs"
+  color: 0075ca
+  description: Документация
+
+# --- area ---
+- name: "area: widget"
+  color: c5def5
+  description: Плавающий виджет-орб
+- name: "area: panel"
+  color: c5def5
+  description: Панель задач / карточки / детальный вид
+- name: "area: jira"
+  color: c5def5
+  description: Интеграция с Jira (задачи, статусы, SLA)
+- name: "area: gitlab"
+  color: c5def5
+  description: Интеграция с GitLab (MR, ревью)
+- name: "area: coder"
+  color: c5def5
+  description: Кодер-агент (ветки, патчи, коммиты)
+- name: "area: build"
+  color: c5def5
+  description: Сборка, релизы, автообновление, CI
+
+# --- priority ---
+- name: "priority: high"
+  color: b60205
+  description: Высокий приоритет
+- name: "priority: low"
+  color: bfd4f2
+  description: Низкий приоритет
+
+# --- status ---
+- name: "status: in progress"
+  color: fbca04
+  description: В работе
+- name: "status: blocked"
+  color: e11d21
+  description: Заблокировано
