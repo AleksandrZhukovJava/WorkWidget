@@ -17,6 +17,8 @@ interface RequestOptions {
   query?: Record<string, string | number | boolean | undefined>
   /** override creds (used by the connection test before anything is saved) */
   auth?: { baseUrl: string; pat: string }
+  /** hit a path relative to the host root (no /api/v4 prefix), e.g. /-/autocomplete/users.json */
+  raw?: boolean
 }
 
 // Same rationale as the Jira client: a stalled tunnel must fail fast, not hang forever.
@@ -36,8 +38,8 @@ function resolveAuth(opts: RequestOptions): { base: string; token: string } {
   return { base, token: pat }
 }
 
-function buildUrl(base: string, path: string, query?: RequestOptions['query']): string {
-  const url = new URL(`${base}/api/v4${path}`)
+function buildUrl(base: string, path: string, query?: RequestOptions['query'], raw = false): string {
+  const url = new URL(raw ? `${base}${path}` : `${base}/api/v4${path}`)
   if (query) {
     for (const [k, v] of Object.entries(query)) {
       if (v !== undefined) url.searchParams.set(k, String(v))
@@ -54,7 +56,7 @@ export async function glRequest<T>(path: string, opts: RequestOptions = {}): Pro
 
   let res: Response
   try {
-    res = await fetch(buildUrl(base, path, opts.query), {
+    res = await fetch(buildUrl(base, path, opts.query, opts.raw), {
       method: opts.method ?? 'GET',
       headers: {
         'PRIVATE-TOKEN': token,
