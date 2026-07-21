@@ -1146,6 +1146,18 @@ body {
 .gl-search {
   margin-bottom: 6px;
 }
+.gl-add-login {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+.gl-add-login .gl-search {
+  flex: 1;
+  margin-bottom: 0;
+}
+.gl-add-login .btn {
+  white-space: nowrap;
+}
 
 /* MR chip on a task card */
 .issue__mr {

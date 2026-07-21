@@ -86,6 +86,10 @@ export function GitlabView({
   const [memberSearch, setMemberSearch] = useState('')
   const [favorites, setFavorites] = useState<GitlabUser[]>([])
   const [autoReviewers, setAutoReviewers] = useState<GitlabUser[]>([])
+  // Reviewers added by exact @login — kept apart so a member-list reload can't drop them.
+  const [manualReviewers, setManualReviewers] = useState<GitlabUser[]>([])
+  const [addLogin, setAddLogin] = useState('')
+  const [addStatus, setAddStatus] = useState<string | null>(null)
 
   useEffect(() => {
     void window.api.getSettings().then((s) => {
@@ -163,9 +167,28 @@ export function GitlabView({
     setProjectId(p.id)
     setResult(null)
     setMemberSearch('') // reset reviewer search; the effect below loads the member list
+    setManualReviewers([])
+    setAddStatus(null)
     const b = await window.api.gitlabBranches(p.id)
     setBranches(b)
     if (!targetBranch) setTargetBranch(p.defaultBranch)
+  }
+
+  // Add a reviewer the lists don't surface, by exact @login. Resolved server-side and kept in
+  // `manualReviewers` so it stays selected regardless of what the member search shows.
+  async function addReviewerByLogin(): Promise<void> {
+    const login = addLogin.trim().replace(/^@/, '')
+    if (!login) return
+    setAddStatus('Поиск…')
+    const u = await window.api.gitlabResolveUser(login).catch(() => null)
+    if (!u) {
+      setAddStatus(`@${login} не найден`)
+      return
+    }
+    setManualReviewers((prev) => (prev.some((m) => m.id === u.id) ? prev : [...prev, u]))
+    setReviewerIds((prev) => (prev.includes(u.id) ? prev : [...prev, u.id]))
+    setAddLogin('')
+    setAddStatus(`Добавлен: ${u.name} (@${u.username})`)
   }
 
   // Reviewer/member list — server-side search (debounced), like the project search. Typing a
@@ -277,10 +300,14 @@ export function GitlabView({
     !q || u.name.toLowerCase().includes(q) || u.username.toLowerCase().includes(q)
   // Members not already in favorites, filtered by the search box.
   // Pinned = favorites ∪ auto-reviewers, always shown at top (dedup by id).
-  const pinnedUsers: GitlabUser[] = [
-    ...favorites,
-    ...autoReviewers.filter((a) => !favorites.some((f) => f.id === a.id))
-  ]
+  const pinnedUsers: GitlabUser[] = []
+  const seenPinned = new Set<number>()
+  for (const u of [...favorites, ...autoReviewers, ...manualReviewers]) {
+    if (!seenPinned.has(u.id)) {
+      seenPinned.add(u.id)
+      pinnedUsers.push(u)
+    }
+  }
   const isPinned = (id: number): boolean => pinnedUsers.some((u) => u.id === id)
   const filteredMembers = members.filter((m) => !isPinned(m.id) && matches(m))
 
@@ -445,6 +472,25 @@ export function GitlabView({
                     </div>
                   )}
                 </div>
+                <div className="gl-add-login">
+                  <input
+                    className="gl-search"
+                    placeholder="Нет в списке? Добавьте по @логину"
+                    value={addLogin}
+                    onChange={(e) => setAddLogin(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') void addReviewerByLogin()
+                    }}
+                  />
+                  <button
+                    className="btn"
+                    disabled={!addLogin.trim()}
+                    onClick={() => void addReviewerByLogin()}
+                  >
+                    Добавить
+                  </button>
+                </div>
+                {addStatus && <div className="hint">{addStatus}</div>}
               </>
             )}
           </div>

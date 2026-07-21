@@ -89,6 +89,7 @@ export const IPC = {
   gitlabProjects: 'gitlab:projects',
   gitlabBranches: 'gitlab:branches',
   gitlabMembers: 'gitlab:members',
+  gitlabResolveUser: 'gitlab:resolveUser',
   gitlabCreateMR: 'gitlab:createMR',
   gitlabMyReviews: 'gitlab:myReviews',
   gitlabMyMRs: 'gitlab:myMRs',
