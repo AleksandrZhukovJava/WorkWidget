@@ -5,7 +5,8 @@ import type {
   GitlabConfig,
   GitlabMR,
   GitlabProject,
-  GitlabUser
+  GitlabUser,
+  ReviewerDiag
 } from '@shared/types'
 
 /** Prefill passed from the coder-agent after it pushes a branch. */
@@ -90,6 +91,7 @@ export function GitlabView({
   const [manualReviewers, setManualReviewers] = useState<GitlabUser[]>([])
   const [addLogin, setAddLogin] = useState('')
   const [addStatus, setAddStatus] = useState<string | null>(null)
+  const [diag, setDiag] = useState<ReviewerDiag[] | null>(null)
 
   useEffect(() => {
     void window.api.getSettings().then((s) => {
@@ -189,6 +191,22 @@ export function GitlabView({
     setReviewerIds((prev) => (prev.includes(u.id) ? prev : [...prev, u.id]))
     setAddLogin('')
     setAddStatus(`Добавлен: ${u.name} (@${u.username})`)
+  }
+
+  // Probe every lookup endpoint for the entered login/name so we can see what this GitLab
+  // instance actually returns (vs. guessing which source should have the person).
+  async function runDiagnostics(): Promise<void> {
+    if (projectId == null) return
+    const query = (addLogin.trim() || memberSearch.trim()).replace(/^@/, '')
+    if (!query) {
+      setAddStatus('Введите @логин или имя для диагностики')
+      return
+    }
+    setDiag(null)
+    setAddStatus(`Диагностика по «${query}»…`)
+    const r = await window.api.gitlabDiagnoseReviewer(projectId, query).catch(() => [])
+    setDiag(r)
+    setAddStatus(null)
   }
 
   // Reviewer/member list — server-side search (debounced), like the project search. Typing a
@@ -489,8 +507,32 @@ export function GitlabView({
                   >
                     Добавить
                   </button>
+                  <button
+                    className="btn"
+                    title="Проверить, какой эндпоинт GitLab возвращает этого человека"
+                    onClick={() => void runDiagnostics()}
+                  >
+                    Диагностика
+                  </button>
                 </div>
                 {addStatus && <div className="hint">{addStatus}</div>}
+                {diag && (
+                  <div className="gl-diag">
+                    {diag.map((d) => (
+                      <div
+                        key={d.source}
+                        className={`gl-diag__row ${d.found ? 'is-found' : ''} ${d.error ? 'is-err' : ''}`}
+                      >
+                        <span className="gl-diag__src">{d.source}</span>
+                        <span className="gl-diag__res">
+                          {d.error
+                            ? `ошибка: ${d.error}`
+                            : `${d.count} найдено${d.found ? ' · ЕСТЬ ✓' : ''}`}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </>
             )}
           </div>

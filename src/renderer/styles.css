@@ -1158,6 +1158,30 @@ body {
 .gl-add-login .btn {
   white-space: nowrap;
 }
+.gl-diag {
+  margin-top: 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 11.5px;
+  font-family: ui-monospace, Consolas, monospace;
+}
+.gl-diag__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 1px 0;
+}
+.gl-diag__src {
+  opacity: 0.75;
+}
+.gl-diag__row.is-found .gl-diag__res {
+  color: var(--ok);
+  font-weight: 700;
+}
+.gl-diag__row.is-err .gl-diag__res {
+  color: #f85149;
+}
 
 /* MR chip on a task card */
 .issue__mr {

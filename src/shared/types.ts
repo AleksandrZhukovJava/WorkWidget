@@ -445,6 +445,15 @@ export interface JiraIssue {
   checklist: ChecklistItem[]
 }
 
+/** One endpoint's result in the reviewer-lookup diagnostic. count === -1 means the call errored. */
+export interface ReviewerDiag {
+  source: string
+  count: number
+  found: boolean
+  sample: string[]
+  error?: string
+}
+
 /** Auto-update status pushed from main to the renderer (drives the update banner/button). */
 export interface UpdateStatus {
   state: 'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'none' | 'error'

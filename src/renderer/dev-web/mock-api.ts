@@ -608,6 +608,23 @@ TimeoutException: payment gateway did not respond
     const known = [{ id: 15, username: 'a.vasilevskii', name: 'Anton Vasilevskii' }]
     return known.find((k) => k.username.toLowerCase() === u) ?? null
   },
+  gitlabDiagnoseReviewer: async (_projectId: number, query: string) => {
+    const q = query.trim().replace(/^@/, '').toLowerCase()
+    const hit = q === 'a.vasilevskii'
+    return [
+      { source: 'members/all', count: 3, found: false, sample: ['Иван Петров @i.petrov'] },
+      { source: 'project users', count: 3, found: false, sample: [] },
+      { source: 'group members', count: 0, found: false, sample: [] },
+      { source: 'autocomplete', count: -1, found: false, sample: [], error: 'HTTP 302 (non-JSON)' },
+      { source: 'users?search', count: 0, found: false, sample: [] },
+      {
+        source: 'users?username',
+        count: hit ? 1 : 0,
+        found: hit,
+        sample: hit ? ['Anton Vasilevskii @a.vasilevskii'] : []
+      }
+    ]
+  },
   gitlabCreateMR: async () => {
     const auto = settings.gitlabAutomation
     let note: string | undefined

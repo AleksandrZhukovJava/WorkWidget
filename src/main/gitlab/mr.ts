@@ -9,8 +9,14 @@ import type {
   CreateMrInput,
   GitlabMR,
   GitlabProject,
-  GitlabUser
+  GitlabUser,
+  ReviewerDiag
 } from '@shared/types'
+
+/** glRequest can resolve to undefined (non-JSON 200); coerce list results to a safe array. */
+function arr<T>(v: T[] | undefined | null): T[] {
+  return Array.isArray(v) ? v : []
+}
 
 interface GlProject {
   id: number
@@ -174,7 +180,10 @@ export async function listProjectMembers(projectId: number, search?: string): Pr
       : Promise.resolve([] as GlMember[])
   ])
   const byId = new Map<number, GitlabUser>()
-  for (const u of [...members, ...projectUsers, ...groupMembers, ...autocomplete, ...globalUsers]) {
+  // Coerce each source to an array: glRequest returns `undefined` for a non-JSON 200 (some
+  // self-hosted instances answer /-/autocomplete with an HTML login page), and spreading
+  // `undefined` would throw and wipe the whole list. This was the "reviewers vanished" bug.
+  for (const u of [members, projectUsers, groupMembers, autocomplete, globalUsers].flatMap(arr)) {
     if (u && typeof u.id === 'number') byId.set(u.id, { id: u.id, username: u.username, name: u.name })
   }
   return [...byId.values()]
@@ -188,17 +197,66 @@ export async function listProjectMembers(projectId: number, search?: string): Pr
 export async function resolveGitlabUser(username: string): Promise<GitlabUser | null> {
   const u = username.trim().replace(/^@/, '')
   if (!u) return null
-  const exact = await glRequest<GlMember[]>('/users', { query: { username: u } }).catch(
-    () => [] as GlMember[]
+  const exact = arr<GlMember>(
+    await glRequest<GlMember[]>('/users', { query: { username: u } }).catch(() => [] as GlMember[])
   )
   let hit = exact[0]
   if (!hit) {
-    const found = await glRequest<GlMember[]>('/users', {
-      query: { search: u, per_page: 5 }
-    }).catch(() => [] as GlMember[])
+    const found = arr<GlMember>(
+      await glRequest<GlMember[]>('/users', { query: { search: u, per_page: 5 } }).catch(
+        () => [] as GlMember[]
+      )
+    )
     hit = found.find((m) => m.username?.toLowerCase() === u.toLowerCase()) ?? found[0]
   }
   return hit ? { id: hit.id, username: hit.username, name: hit.name } : null
+}
+
+/**
+ * Per-endpoint probe for "why isn't this reviewer found": queries every source independently and
+ * reports count / whether the query matched / an error. Surfaced by the "Диагностика" button so we
+ * can see exactly what this GitLab instance returns instead of guessing.
+ */
+export async function diagnoseReviewer(projectId: number, query: string): Promise<ReviewerDiag[]> {
+  const q = query.trim().replace(/^@/, '')
+  const groupId = await projectGroupId(projectId).catch(() => null)
+  const probe = async (source: string, fn: () => Promise<GlMember[] | undefined>): Promise<ReviewerDiag> => {
+    try {
+      const res = arr(await fn())
+      const found = res.some(
+        (u) =>
+          u &&
+          (u.username?.toLowerCase() === q.toLowerCase() ||
+            (u.name ?? '').toLowerCase().includes(q.toLowerCase()))
+      )
+      return { source, count: res.length, found, sample: res.slice(0, 3).map((u) => `${u.name} @${u.username}`) }
+    } catch (e) {
+      return { source, count: -1, found: false, sample: [], error: e instanceof Error ? e.message : String(e) }
+    }
+  }
+  return Promise.all([
+    probe('members/all', () =>
+      glRequest(`/projects/${projectId}/members/all`, { query: { per_page: 100, query: q } })
+    ),
+    probe('project users', () =>
+      glRequest(`/projects/${projectId}/users`, { query: { per_page: 100, search: q } })
+    ),
+    probe('group members', () =>
+      groupId
+        ? glRequest(`/groups/${groupId}/members/all`, { query: { per_page: 100, query: q } })
+        : Promise.resolve([])
+    ),
+    probe('autocomplete', () =>
+      glRequest('/-/autocomplete/users.json', {
+        raw: true,
+        query: { active: true, project_id: projectId, search: q }
+      })
+    ),
+    probe('users?search', () =>
+      glRequest('/users', { query: { search: q, active: true, per_page: 20 } })
+    ),
+    probe('users?username', () => glRequest('/users', { query: { username: q } }))
+  ])
 }
 
 /** Create a merge request. Never merges it — only opens it. */

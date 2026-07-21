@@ -7,6 +7,7 @@ import type {
   ApplyResult,
   BranchResult,
   ChecklistItem,
+  ReviewerDiag,
   UpdateStatus,
   CommitResult,
   ConnectionResult,
@@ -211,6 +212,8 @@ const api = {
     ipcRenderer.invoke(IPC.gitlabMembers, projectId, search),
   gitlabResolveUser: (username: string): Promise<GitlabUser | null> =>
     ipcRenderer.invoke(IPC.gitlabResolveUser, username),
+  gitlabDiagnoseReviewer: (projectId: number, query: string): Promise<ReviewerDiag[]> =>
+    ipcRenderer.invoke(IPC.gitlabDiagnoseReviewer, projectId, query),
   gitlabCreateMR: (input: CreateMrInput): Promise<CreateMrResult> =>
     ipcRenderer.invoke(IPC.gitlabCreateMR, input),
   gitlabMyReviews: (): Promise<GitlabMR[]> => ipcRenderer.invoke(IPC.gitlabMyReviews),
