@@ -70,6 +70,7 @@ import {
   listBranches,
   getBranchCommitTitle,
   listProjectMembers,
+  resolveGitlabUser,
   createMergeRequest,
   listMyReviewMRs,
   listMyAuthoredMRs
@@ -582,6 +583,9 @@ export function registerIpc(): void {
   )
   ipcMain.handle(IPC.gitlabMembers, (_e, projectId: number, search?: string) =>
     listProjectMembers(projectId, search).catch(() => [])
+  )
+  ipcMain.handle(IPC.gitlabResolveUser, (_e, username: string) =>
+    resolveGitlabUser(username).catch(() => null)
   )
   ipcMain.handle(IPC.gitlabMyReviews, () => listMyReviewMRs().catch(() => []))
   ipcMain.handle(IPC.gitlabMyMRs, () => listMyAuthoredMRs().catch(() => []))

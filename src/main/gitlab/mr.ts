@@ -180,6 +180,27 @@ export async function listProjectMembers(projectId: number, search?: string): Pr
   return [...byId.values()]
 }
 
+/**
+ * Resolve a single user by exact @username (with a name-search fallback). Lets the user add a
+ * reviewer the member/autocomplete lists don't surface — `GET /users?username=` is a precise
+ * lookup that works regardless of project membership. Returns null if nothing matches.
+ */
+export async function resolveGitlabUser(username: string): Promise<GitlabUser | null> {
+  const u = username.trim().replace(/^@/, '')
+  if (!u) return null
+  const exact = await glRequest<GlMember[]>('/users', { query: { username: u } }).catch(
+    () => [] as GlMember[]
+  )
+  let hit = exact[0]
+  if (!hit) {
+    const found = await glRequest<GlMember[]>('/users', {
+      query: { search: u, per_page: 5 }
+    }).catch(() => [] as GlMember[])
+    hit = found.find((m) => m.username?.toLowerCase() === u.toLowerCase()) ?? found[0]
+  }
+  return hit ? { id: hit.id, username: hit.username, name: hit.name } : null
+}
+
 /** Create a merge request. Never merges it — only opens it. */
 export async function createMergeRequest(
   input: CreateMrInput

@@ -602,6 +602,12 @@ TimeoutException: payment gateway did not respond
       (u) => u.name.toLowerCase().includes(q) || u.username.toLowerCase().includes(q)
     )
   },
+  gitlabResolveUser: async (username: string) => {
+    // Simulates a colleague findable only by exact @login (not in any member list).
+    const u = username.trim().replace(/^@/, '').toLowerCase()
+    const known = [{ id: 15, username: 'a.vasilevskii', name: 'Anton Vasilevskii' }]
+    return known.find((k) => k.username.toLowerCase() === u) ?? null
+  },
   gitlabCreateMR: async () => {
     const auto = settings.gitlabAutomation
     let note: string | undefined

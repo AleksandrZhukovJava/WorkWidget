@@ -209,6 +209,8 @@ const api = {
     ipcRenderer.invoke(IPC.gitlabBranches, projectId, search),
   gitlabMembers: (projectId: number, search?: string): Promise<GitlabUser[]> =>
     ipcRenderer.invoke(IPC.gitlabMembers, projectId, search),
+  gitlabResolveUser: (username: string): Promise<GitlabUser | null> =>
+    ipcRenderer.invoke(IPC.gitlabResolveUser, username),
   gitlabCreateMR: (input: CreateMrInput): Promise<CreateMrResult> =>
     ipcRenderer.invoke(IPC.gitlabCreateMR, input),
   gitlabMyReviews: (): Promise<GitlabMR[]> => ipcRenderer.invoke(IPC.gitlabMyReviews),
