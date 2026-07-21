@@ -143,7 +143,7 @@ async function projectGroupId(projectId: number): Promise<number | null> {
 export async function listProjectMembers(projectId: number, search?: string): Promise<GitlabUser[]> {
   const q = search?.trim() || undefined
   const groupId = q ? await projectGroupId(projectId) : null // group union only matters when searching
-  const [members, projectUsers, groupMembers] = await Promise.all([
+  const [members, projectUsers, groupMembers, autocomplete, globalUsers] = await Promise.all([
     glRequest<GlMember[]>(`/projects/${projectId}/members/all`, {
       query: { per_page: 100, query: q }
     }).catch(() => [] as GlMember[]),
@@ -156,11 +156,26 @@ export async function listProjectMembers(projectId: number, search?: string): Pr
       ? glRequest<GlMember[]>(`/groups/${groupId}/members/all`, {
           query: { per_page: 100, query: q }
         }).catch(() => [] as GlMember[])
+      : Promise.resolve([] as GlMember[]),
+    // The exact feed GitLab's own reviewer/assignee picker uses — the broadest, project-scoped
+    // list of assignable users. This is what makes "I can pick them on GitLab" match here.
+    q
+      ? glRequest<GlMember[]>('/-/autocomplete/users.json', {
+          raw: true,
+          query: { active: true, project_id: projectId, search: q, per_page: 20 }
+        }).catch(() => [] as GlMember[])
+      : Promise.resolve([] as GlMember[]),
+    // Last-resort global user search by name/username — catches an assignable colleague who
+    // isn't surfaced by any project/group endpoint on this instance.
+    q
+      ? glRequest<GlMember[]>('/users', {
+          query: { search: q, active: true, per_page: 20 }
+        }).catch(() => [] as GlMember[])
       : Promise.resolve([] as GlMember[])
   ])
   const byId = new Map<number, GitlabUser>()
-  for (const u of [...members, ...projectUsers, ...groupMembers]) {
-    byId.set(u.id, { id: u.id, username: u.username, name: u.name })
+  for (const u of [...members, ...projectUsers, ...groupMembers, ...autocomplete, ...globalUsers]) {
+    if (u && typeof u.id === 'number') byId.set(u.id, { id: u.id, username: u.username, name: u.name })
   }
   return [...byId.values()]
 }
