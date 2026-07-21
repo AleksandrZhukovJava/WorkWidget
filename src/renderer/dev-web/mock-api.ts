@@ -588,11 +588,20 @@ TimeoutException: payment gateway did not respond
     { id: 102, pathWithNamespace: 'demo/api', webUrl: 'https://gitlab.example.com/demo/api', defaultBranch: 'main' }
   ],
   gitlabBranches: async () => ['develop', 'main', 'feature/OPS-1421', 'release/2.4'],
-  gitlabMembers: async () => [
-    { id: 11, username: 'i.petrov', name: 'Иван Петров' },
-    { id: 12, username: 'a.smirnova', name: 'Анна Смирнова' },
-    { id: 13, username: 'd.kim', name: 'Дмитрий Ким' }
-  ],
+  gitlabMembers: async (_projectId: number, search?: string) => {
+    const base = [
+      { id: 11, username: 'i.petrov', name: 'Иван Петров' },
+      { id: 12, username: 'a.smirnova', name: 'Анна Смирнова' },
+      { id: 13, username: 'd.kim', name: 'Дмитрий Ким' }
+    ]
+    // Simulates a colleague reachable only via a group search — absent from the default list.
+    const groupOnly = [{ id: 14, username: 's.orlov', name: 'Сергей Орлов' }]
+    const q = search?.trim().toLowerCase()
+    if (!q) return base
+    return [...base, ...groupOnly].filter(
+      (u) => u.name.toLowerCase().includes(q) || u.username.toLowerCase().includes(q)
+    )
+  },
   gitlabCreateMR: async () => {
     const auto = settings.gitlabAutomation
     let note: string | undefined

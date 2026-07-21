@@ -119,23 +119,47 @@ export async function listBranches(projectId: number, search?: string): Promise<
   return list.map((b) => b.name)
 }
 
+/** The project's owning group id (null if the project sits under a user namespace). */
+async function projectGroupId(projectId: number): Promise<number | null> {
+  try {
+    const p = await glRequest<{ namespace?: { id: number; kind: string } }>(
+      `/projects/${projectId}`
+    )
+    return p.namespace?.kind === 'group' ? p.namespace.id : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Users assignable as MR reviewers — as broad as GitLab's own picker. We union three sources
+ * because none alone is complete:
+ *   - `/projects/:id/members/all` — direct + inherited (ancestor-group) members,
+ *   - `/projects/:id/users`       — everyone with project access (covers invited/shared groups),
+ *   - `/groups/:groupId/members/all` — the owning group's members (colleagues who have access via
+ *     the group but were never added to the project directly; the common "missing reviewer" case).
+ * With a search term GitLab filters server-side, so the frontend searches instead of paging.
+ */
 export async function listProjectMembers(projectId: number, search?: string): Promise<GitlabUser[]> {
   const q = search?.trim() || undefined
-  const [members, projectUsers] = await Promise.all([
+  const groupId = q ? await projectGroupId(projectId) : null // group union only matters when searching
+  const [members, projectUsers, groupMembers] = await Promise.all([
     glRequest<GlMember[]>(`/projects/${projectId}/members/all`, {
       query: { per_page: 100, query: q }
     }).catch(() => [] as GlMember[]),
-    // `/projects/:id/users` is broader than membership (covers access via shared/invited
-    // groups) — it matches who GitLab actually lets you pick as a reviewer. Only when
-    // searching, to keep the default list to real members.
     q
       ? glRequest<GlMember[]>(`/projects/${projectId}/users`, {
-          query: { per_page: 50, search: q }
+          query: { per_page: 100, search: q }
+        }).catch(() => [] as GlMember[])
+      : Promise.resolve([] as GlMember[]),
+    groupId
+      ? glRequest<GlMember[]>(`/groups/${groupId}/members/all`, {
+          query: { per_page: 100, query: q }
         }).catch(() => [] as GlMember[])
       : Promise.resolve([] as GlMember[])
   ])
   const byId = new Map<number, GitlabUser>()
-  for (const u of [...members, ...projectUsers]) {
+  for (const u of [...members, ...projectUsers, ...groupMembers]) {
     byId.set(u.id, { id: u.id, username: u.username, name: u.name })
   }
   return [...byId.values()]
