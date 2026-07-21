@@ -162,14 +162,22 @@ export function GitlabView({
   async function selectProject(p: GitlabProject): Promise<void> {
     setProjectId(p.id)
     setResult(null)
-    const [b, m] = await Promise.all([
-      window.api.gitlabBranches(p.id),
-      window.api.gitlabMembers(p.id)
-    ])
+    setMemberSearch('') // reset reviewer search; the effect below loads the member list
+    const b = await window.api.gitlabBranches(p.id)
     setBranches(b)
-    setMembers(m)
     if (!targetBranch) setTargetBranch(p.defaultBranch)
   }
+
+  // Reviewer/member list — server-side search (debounced), like the project search. Typing a
+  // name re-queries the backend, so colleagues reachable via shared/parent groups (not just the
+  // first page of direct members) show up — matching who GitLab's own picker offers.
+  useEffect(() => {
+    if (projectId == null) return
+    const t = setTimeout(() => {
+      void window.api.gitlabMembers(projectId, memberSearch.trim() || undefined).then(setMembers)
+    }, 250)
+    return () => clearTimeout(t)
+  }, [projectId, memberSearch])
 
   // Coder-agent hand-off: switch to the create tab, prefill, auto-detect the project.
   useEffect(() => {
