@@ -951,6 +951,31 @@ export function Settings({
           </div>
 
           <div className="field">
+            <label>Автозаполнение поля «QA» при переходе в статус</label>
+            <div className="row">
+              <input
+                value={settings.qaFieldLabel}
+                onChange={(e) => setSettings({ ...settings, qaFieldLabel: e.target.value })}
+                onBlur={() => void patchSettings({ qaFieldLabel: settings.qaFieldLabel })}
+                placeholder="QA"
+                title="Название поля QA в форме задачи Jira"
+              />
+              <input
+                value={settings.qaTriggerStatus}
+                onChange={(e) => setSettings({ ...settings, qaTriggerStatus: e.target.value })}
+                onBlur={() => void patchSettings({ qaTriggerStatus: settings.qaTriggerStatus })}
+                placeholder="Testing"
+                title="Статус, при переходе в который заполнять QA"
+              />
+            </div>
+            <div className="hint">
+              Слева — название поля «QA» (как в форме задачи), справа — статус (напр. «Testing»).
+              При переходе задачи в этот статус, если поле QA пустое, туда подставишься ты. Оставь
+              название поля пустым, чтобы выключить.
+            </div>
+          </div>
+
+          <div className="field">
             <label>Интервал обновления (минуты)</label>
             <input
               type="number"

@@ -40,7 +40,7 @@ import { listEvents, markAllRead, clearEvents } from './store/events'
 import { refreshVpn } from './dashboard'
 import { addComment } from './jira/comments'
 import { getProjects, getIssueTypesForProject, getCreateFields, createIssue } from './jira/create'
-import { assignToMe } from './jira/assign'
+import { assignToMe, fillQaIfTesting } from './jira/assign'
 import { generateTaskDescription, refineTaskDescription, testLlm, testCoder } from './llm/client'
 import { setLlmApiKey, getLlmApiKey, setCoderApiKey } from './store/credentials'
 import { generatePatch } from './agent/coder'
@@ -212,6 +212,7 @@ export function registerIpc(): void {
   ipcMain.handle(IPC.doTransition, (_e, key: string, transitionId: string) =>
     guard(async () => {
       await doTransition(key, transitionId)
+      await fillQaIfTesting(key) // auto-fill QA with me if the task landed in "Testing"
       await refreshNow()
     })
   )
@@ -220,6 +221,7 @@ export function registerIpc(): void {
 
   ipcMain.handle(IPC.transitionTo, async (_e, key: string, status: string) => {
     const r = await transitionToStatus(key, status)
+    if (r.ok) await fillQaIfTesting(key) // auto-fill QA with me if now in "Testing"
     if (r.ok && !r.skipped) await refreshNow() // nothing changed when already in the status
     return r
   })

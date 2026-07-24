@@ -9,15 +9,19 @@ interface JiraField {
 
 // In-memory only — resolved once per configured label per app session. Custom field ids
 // almost never change, and re-resolving costs one cheap GET, so no need to persist this.
-let cachedField: { label: string; id: string } | null = null
+const fieldIdCache = new Map<string, string>()
 
-async function resolveImplementerFieldId(label: string): Promise<string | null> {
-  if (cachedField?.label === label) return cachedField.id
+/** Resolve a custom-field label (as shown on the Jira form) to its `customfield_XXXXX` id. */
+async function resolveFieldId(label: string): Promise<string | null> {
+  const key = label.trim().toLowerCase()
+  if (!key) return null
+  const cached = fieldIdCache.get(key)
+  if (cached) return cached
   try {
     const fields = await jiraRequest<JiraField[]>(`${restApi()}/field`)
-    const match = fields.find((f) => f.name.trim().toLowerCase() === label.trim().toLowerCase())
+    const match = fields.find((f) => f.name.trim().toLowerCase() === key)
     if (!match) return null
-    cachedField = { label, id: match.id }
+    fieldIdCache.set(key, match.id)
     return match.id
   } catch {
     return null
@@ -56,7 +60,7 @@ export async function assignToMe(issueKey: string): Promise<{ ok: boolean; error
 
   const label = getSettings().implementerFieldLabel.trim()
   if (label) {
-    const fieldId = await resolveImplementerFieldId(label)
+    const fieldId = await resolveFieldId(label)
     if (fieldId) {
       await jiraRequest<void>(`${restApi()}/issue/${encodeURIComponent(issueKey)}`, {
         method: 'PUT',
@@ -68,4 +72,36 @@ export async function assignToMe(issueKey: string): Promise<{ ok: boolean; error
   }
 
   return { ok: true }
+}
+
+/**
+ * After a transition: if the issue is now in the configured "Testing" status and the QA user
+ * field is still empty, put the current user into it. Best-effort — a transition already
+ * succeeded, so this never throws and never blocks. No-op when no QA field label is configured.
+ */
+export async function fillQaIfTesting(issueKey: string): Promise<void> {
+  const { qaFieldLabel, qaTriggerStatus } = getSettings()
+  const label = qaFieldLabel.trim()
+  const trigger = (qaTriggerStatus.trim() || 'Testing').toLowerCase()
+  if (!label) return
+  const identity = myIdentityPayload()
+  if (!identity) return
+  try {
+    const fieldId = await resolveFieldId(label)
+    if (!fieldId) return
+    const r = await jiraRequest<{ fields?: Record<string, unknown> & { status?: { name?: string } } }>(
+      `${restApi()}/issue/${encodeURIComponent(issueKey)}`,
+      { query: { fields: `status,${fieldId}` } }
+    )
+    const statusName = (r.fields?.status?.name ?? '').trim().toLowerCase()
+    if (statusName !== trigger) return
+    const currentQa = r.fields?.[fieldId]
+    if (currentQa != null && currentQa !== '') return // already filled — leave it
+    await jiraRequest<void>(`${restApi()}/issue/${encodeURIComponent(issueKey)}`, {
+      method: 'PUT',
+      body: { fields: { [fieldId]: identity } }
+    })
+  } catch {
+    /* best-effort; the transition itself already succeeded */
+  }
 }

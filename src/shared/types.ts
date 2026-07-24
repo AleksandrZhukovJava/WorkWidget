@@ -103,6 +103,13 @@ export interface AppSettings {
    */
   implementerFieldLabel: string
   /**
+   * Label of a "QA" user field. When a task transitions into `qaTriggerStatus`, the current user
+   * is put into this field if it's still empty. Empty label = feature off.
+   */
+  qaFieldLabel: string
+  /** Status name that triggers the QA auto-fill (default "Testing"). */
+  qaTriggerStatus: string
+  /**
    * Which field makes a task "mine" in the task list. Empty = standard Assignee.
    * Otherwise a custom field label used in JQL (e.g. "Исполнитель" or "QA") — it becomes
    * the primary criterion; `myFieldIncludeAssignee` additionally ORs in Assignee.
