@@ -149,6 +149,8 @@ const settings: AppSettings = {
   defaultView: 'prioritized',
   jiraProjectKey: 'OSE',
   implementerFieldLabel: 'Исполнитель',
+  qaFieldLabel: 'QA',
+  qaTriggerStatus: 'Testing',
   myFieldLabel: 'Исполнитель',
   myFieldIncludeAssignee: true,
   onboardingDone: true,
