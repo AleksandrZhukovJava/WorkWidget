@@ -255,7 +255,8 @@ let mockEvents = [
   { id: 'e1', type: 'new' as const, issueKey: 'OPS-1500', issueSummary: 'Настроить алерты в Grafana', text: 'новая задача', url: 'https://example.atlassian.net/browse/OPS-1500', at: new Date(now - 60000).toISOString(), read: false },
   { id: 'e2', type: 'comment' as const, issueKey: 'OPS-1421', issueSummary: 'Падает синхронизация платежей в проде после деплоя', text: 'новый комментарий от Ivan', url: 'https://example.atlassian.net/browse/OPS-1421', at: new Date(now - 900000).toISOString(), read: false },
   { id: 'e3', type: 'status' as const, issueKey: 'OPS-1390', issueSummary: 'Клиент не получает письмо со сбросом пароля', text: 'To Do → In Progress', url: 'https://example.atlassian.net/browse/OPS-1390', at: new Date(now - 3600000).toISOString(), read: true },
-  { id: 'e4', type: 'due' as const, issueKey: 'OPS-1355', issueSummary: 'Добавить экспорт отчёта в CSV', text: 'срок просрочен', url: 'https://example.atlassian.net/browse/OPS-1355', at: new Date(now - 7200000).toISOString(), read: true }
+  { id: 'e4', type: 'due' as const, issueKey: 'OPS-1355', issueSummary: 'Добавить экспорт отчёта в CSV', text: 'срок просрочен', url: 'https://example.atlassian.net/browse/OPS-1355', at: new Date(now - 7200000).toISOString(), read: true },
+  { id: 'e5', type: 'mr' as const, issueKey: 'OPS-1421', issueSummary: 'feat(OPS-1421): fix billing sync', text: 'MR создан · !42', url: 'https://gitlab.example.com/demo/web-app/-/merge_requests/42', at: new Date(now - 120000).toISOString(), read: false }
 ]
 
 function unreadEventCount(): number {

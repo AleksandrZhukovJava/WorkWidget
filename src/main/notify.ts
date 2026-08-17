@@ -274,6 +274,29 @@ export function checkGitlabTokenExpiry(): void {
  * Record a notification that we auto-moved a Jira issue to a new status (triggered by a GitLab
  * MR event). Shown with the status icon; honors the notifications master toggle + toast pref.
  */
+/** A notification for an MR the user just created, with a clickable link to it. */
+export function notifyMrCreated(
+  jiraKey: string | null,
+  title: string,
+  webUrl: string,
+  iid: number
+): void {
+  const { notifications: n } = getSettings()
+  if (!n.enabled) return
+  const event: NotificationEvent = {
+    id: randomUUID(),
+    type: 'mr',
+    issueKey: jiraKey || `MR !${iid}`,
+    issueSummary: title,
+    text: `MR создан · !${iid}`,
+    url: webUrl,
+    at: new Date().toISOString(),
+    read: false
+  }
+  addEvents([event])
+  if (n.push) raiseToast(event)
+}
+
 export function notifyAutoTransition(jiraKey: string, toStatus: string, reason: string): void {
   const { notifications: n } = getSettings()
   if (!n.enabled) return
