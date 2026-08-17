@@ -1,6 +1,6 @@
 {
   "name": "jira-widget",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "Десктопный виджет для Jira (Server/DC): мои задачи, переходы статусов, комментарии, JSM SLA, интеграция с GitLab",
   "main": "./out/main/index.js",
   "author": "aleksandrjukovjava",
