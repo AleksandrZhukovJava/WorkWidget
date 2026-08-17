@@ -114,6 +114,13 @@ body {
   line-height: 15px;
   text-align: center;
 }
+.widget__orbit-icon {
+  display: inline-block;
+  line-height: 1;
+}
+.widget__orbit-icon.is-spin {
+  animation: spin 0.8s linear infinite;
+}
 
 /* Newest-events glance shown below the ring when hovering the orbit's 🔔 button. */
 .widget__preview {
