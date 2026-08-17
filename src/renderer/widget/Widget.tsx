@@ -242,6 +242,7 @@ export function Widget(): JSX.Element {
 
   // Newest-events preview shown when hovering the orbit's notifications button.
   const [preview, setPreview] = useState<NotificationEvent[] | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
   async function loadPreview(): Promise<void> {
     setPreview((await window.api.getEvents()).slice(0, 2))
   }
@@ -252,6 +253,21 @@ export function Widget(): JSX.Element {
     fn()
     collapse()
   }
+  // Force an immediate re-fetch (e.g. after the network came back or new tasks appeared). Keeps
+  // the orbit open with a spinning icon while it runs, then collapses once the payload lands.
+  async function forceRefresh(): Promise<void> {
+    if (refreshing) return
+    setRefreshing(true)
+    try {
+      await window.api.refreshIssues()
+    } catch {
+      /* ignore — the widget keeps showing the last known state / net-error glyph */
+    } finally {
+      setRefreshing(false)
+      collapse()
+    }
+  }
+
   const orbit: {
     angle: number
     icon: string
@@ -259,11 +275,13 @@ export function Widget(): JSX.Element {
     onClick: () => void
     badge?: number
     preview?: boolean
+    spin?: boolean
   }[] = [
-    { angle: -72, icon: '📋', title: 'Задачи', onClick: act(() => void window.api.openPanel()) },
-    { angle: -36, icon: '➕', title: 'Создать задачу', onClick: act(() => void window.api.openPanel('create')) },
-    { angle: 0, icon: '🔔', title: 'Уведомления', onClick: act(() => void window.api.openPanel('notifications')), badge: unread, preview: true },
-    { angle: 36, icon: '⚙️', title: 'Настройки', onClick: act(() => void window.api.openSettings()) },
+    { angle: -72, icon: '🔄', title: 'Обновить сейчас', onClick: () => void forceRefresh(), spin: true },
+    { angle: -43.2, icon: '📋', title: 'Задачи', onClick: act(() => void window.api.openPanel()) },
+    { angle: -14.4, icon: '➕', title: 'Создать задачу', onClick: act(() => void window.api.openPanel('create')) },
+    { angle: 14.4, icon: '🔔', title: 'Уведомления', onClick: act(() => void window.api.openPanel('notifications')), badge: unread, preview: true },
+    { angle: 43.2, icon: '⚙️', title: 'Настройки', onClick: act(() => void window.api.openSettings()) },
     { angle: 72, icon: '✕', title: 'Скрыть виджет', onClick: act(() => void window.api.hideWidget()) }
   ]
 
@@ -279,7 +297,9 @@ export function Widget(): JSX.Element {
           onMouseEnter={b.preview ? () => void loadPreview() : undefined}
           onMouseLeave={b.preview ? () => setPreview(null) : undefined}
         >
-          {b.icon}
+          <span className={`widget__orbit-icon ${b.spin && refreshing ? 'is-spin' : ''}`}>
+            {b.icon}
+          </span>
           {b.badge !== undefined && b.badge > 0 && (
             <span className="widget__orbit-badge">{b.badge > 9 ? '9+' : b.badge}</span>
           )}
