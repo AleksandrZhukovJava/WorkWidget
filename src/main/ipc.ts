@@ -83,7 +83,7 @@ import type {
 } from '@shared/types'
 import { getCachedIssues, refreshNow, restartPolling, applyLocalState, rebroadcast } from './poller'
 import { getUpdateStatus, check as checkForUpdates, installUpdate } from './updater'
-import { notifyAutoTransition } from './notify'
+import { notifyAutoTransition, notifyMrCreated } from './notify'
 import {
   openPanel,
   closePanel,
@@ -607,6 +607,9 @@ export function registerIpc(): void {
   ipcMain.handle(IPC.gitlabCreateMR, async (_e, input: CreateMrInput): Promise<CreateMrResult> => {
     try {
       const mr = await createMergeRequest(input)
+      // Record the created MR in notifications, with a clickable link to it.
+      notifyMrCreated(mr.jiraKey, input.title, mr.webUrl, mr.iid)
+      rebroadcast() // push the new unread-events count to the widget badge
       let note: string | undefined
       // Optional Jira automation: move the linked issue to "Ready to Review".
       const auto = getSettings().gitlabAutomation

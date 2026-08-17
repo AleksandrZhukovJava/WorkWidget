@@ -18,7 +18,8 @@ const EVENT_ICON: Record<NotificationEvent['type'], string> = {
   due: '⏰',
   comment: '💬',
   review: '👀',
-  token: '🔑'
+  token: '🔑',
+  mr: '🦊'
 }
 
 const DEFAULT_APPEARANCE: WidgetAppearance = {

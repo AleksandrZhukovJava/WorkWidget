@@ -57,7 +57,8 @@ const EVENT_ICON: Record<NotificationEvent['type'], string> = {
   due: '⏰',
   comment: '💬',
   review: '👀',
-  token: '🔑'
+  token: '🔑',
+  mr: '🦊'
 }
 
 /** Short relative time like "5 мин", "2 ч", "3 дн". */
