@@ -30,6 +30,7 @@ import { testConnection, testServerConnection, refreshMyIdentity } from './jira/
 import {
   getTransitions,
   doTransition,
+  doTransitionWithQa,
   getAllStatuses,
   getProjectStatuses,
   transitionToStatus
@@ -213,6 +214,14 @@ export function registerIpc(): void {
     guard(async () => {
       await doTransition(key, transitionId)
       await fillQaIfTesting(key) // auto-fill QA with me if the task landed in "Testing"
+      await refreshNow()
+    })
+  )
+
+  // Transition whose screen requires the QA field — value supplied from the QA modal.
+  ipcMain.handle(IPC.doTransitionQa, (_e, key: string, transitionId: string, qaUser?: string) =>
+    guard(async () => {
+      await doTransitionWithQa(key, transitionId, qaUser)
       await refreshNow()
     })
   )

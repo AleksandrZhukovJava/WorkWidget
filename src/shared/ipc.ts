@@ -20,6 +20,7 @@ export const IPC = {
   refreshIssues: 'issues:refresh',
   getTransitions: 'issues:getTransitions',
   doTransition: 'issues:doTransition',
+  doTransitionQa: 'issues:doTransitionQa',
   getStatuses: 'issues:getStatuses',
   transitionTo: 'issues:transitionTo',
   addComment: 'issues:addComment',

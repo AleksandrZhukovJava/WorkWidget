@@ -420,6 +420,8 @@ export interface JiraTransition {
   toStatus: string
   /** statusCategory.key of the target: 'new' | 'indeterminate' | 'done' */
   toCategory?: string
+  /** the configured QA field is required on this transition's screen — must be filled to proceed */
+  requiresQa?: boolean
 }
 
 export interface JiraIssue {

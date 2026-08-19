@@ -99,6 +99,8 @@ const api = {
     ipcRenderer.invoke(IPC.getTransitions, key),
   doTransition: (key: string, transitionId: string): Promise<ActionResult> =>
     ipcRenderer.invoke(IPC.doTransition, key, transitionId),
+  doTransitionQa: (key: string, transitionId: string, qaUser?: string): Promise<ActionResult> =>
+    ipcRenderer.invoke(IPC.doTransitionQa, key, transitionId, qaUser),
   getStatuses: (key: string): Promise<string[]> => ipcRenderer.invoke(IPC.getStatuses, key),
   transitionTo: (key: string, status: string): Promise<ActionResult> =>
     ipcRenderer.invoke(IPC.transitionTo, key, status),

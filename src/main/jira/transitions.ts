@@ -1,4 +1,6 @@
 import { jiraRequest, restApi } from './client'
+import { getSettings } from '../store/settings'
+import { resolveFieldId, myIdentityPayload } from './assign'
 import type { ActionResult, JiraTransition } from '@shared/types'
 
 interface RawTransitionsResponse {
@@ -6,26 +8,65 @@ interface RawTransitionsResponse {
     id: string
     name: string
     to: { name: string; statusCategory?: { key?: string } }
+    /** with expand=transitions.fields: fieldId -> { required, ... } for that transition's screen */
+    fields?: Record<string, { required?: boolean }>
   }[]
 }
 
+/** Resolved id of the configured QA field, or null (label empty / not found). */
+async function qaFieldId(): Promise<string | null> {
+  const label = getSettings().qaFieldLabel.trim()
+  return label ? resolveFieldId(label) : null
+}
+
 export async function getTransitions(issueKey: string): Promise<JiraTransition[]> {
+  // expand fields so we can tell which transitions require the QA field on their screen.
   const resp = await jiraRequest<RawTransitionsResponse>(
-    `${restApi()}/issue/${encodeURIComponent(issueKey)}/transitions`
+    `${restApi()}/issue/${encodeURIComponent(issueKey)}/transitions`,
+    { query: { expand: 'transitions.fields' } }
   )
+  const qaId = await qaFieldId()
   return (resp.transitions ?? []).map((t) => ({
     id: t.id,
     name: t.name,
     toStatus: t.to.name,
-    toCategory: t.to.statusCategory?.key
+    toCategory: t.to.statusCategory?.key,
+    requiresQa: !!(qaId && t.fields?.[qaId]?.required)
   }))
 }
 
-export async function doTransition(issueKey: string, transitionId: string): Promise<void> {
+/** POST a transition, optionally setting fields on its screen (e.g. a required QA field). */
+export async function doTransition(
+  issueKey: string,
+  transitionId: string,
+  fields?: Record<string, unknown>
+): Promise<void> {
   await jiraRequest<void>(`${restApi()}/issue/${encodeURIComponent(issueKey)}/transitions`, {
     method: 'POST',
-    body: { transition: { id: transitionId } }
+    body: { transition: { id: transitionId }, ...(fields ? { fields } : {}) }
   })
+}
+
+/** Field payload that puts a user into the QA field: a given @login, else the current user. */
+async function qaFieldPayload(qaUser?: string): Promise<Record<string, unknown> | undefined> {
+  const id = await qaFieldId()
+  if (!id) return undefined
+  const value = qaUser?.trim() ? { name: qaUser.trim() } : myIdentityPayload()
+  return value ? { [id]: value } : undefined
+}
+
+/** Do a transition, auto-filling the QA field with the current user when that screen requires it. */
+async function doHop(issueKey: string, t: JiraTransition): Promise<void> {
+  await doTransition(issueKey, t.id, t.requiresQa ? await qaFieldPayload() : undefined)
+}
+
+/** Direct transition that fills the QA field (chosen @login or self) — used by the QA modal. */
+export async function doTransitionWithQa(
+  issueKey: string,
+  transitionId: string,
+  qaUser?: string
+): Promise<void> {
+  await doTransition(issueKey, transitionId, await qaFieldPayload(qaUser))
 }
 
 interface ProjectStatusesResponse {
@@ -251,7 +292,7 @@ async function greedyWalk(
     const ts = await getTransitions(issueKey)
     const direct = ts.find((t) => eqStatus(t.toStatus, target))
     if (direct) {
-      await doTransition(issueKey, direct.id)
+      await doHop(issueKey, direct)
       return { ok: true }
     }
     const candidates = ts.filter((t) => !visited.has(t.toStatus))
@@ -265,7 +306,7 @@ async function greedyWalk(
       }
     }
     visited.add(next.toStatus)
-    await doTransition(issueKey, next.id)
+    await doHop(issueKey, next)
     current = next.toStatus
   }
   return { ok: false, error: `Путь к «${target}» слишком длинный.` }
@@ -289,7 +330,7 @@ export async function transitionToStatus(issueKey: string, target: string): Prom
     const live = await getTransitions(issueKey)
     const direct = live.find((t) => eqStatus(t.toStatus, target))
     if (direct) {
-      await doTransition(issueKey, direct.id)
+      await doHop(issueKey, direct)
       return { ok: true }
     }
 
@@ -311,7 +352,7 @@ export async function transitionToStatus(issueKey: string, target: string): Prom
           const edge = ts.find((t) => eqStatus(t.toStatus, nextStatus))
           // Workflow drifted from the plan — recover with a live greedy walk from here.
           if (!edge) return greedyWalk(issueKey, cur, target)
-          await doTransition(issueKey, edge.id)
+          await doHop(issueKey, edge)
           cur = nextStatus
         }
         return { ok: true }

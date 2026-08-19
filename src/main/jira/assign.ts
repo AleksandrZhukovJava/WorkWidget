@@ -12,7 +12,7 @@ interface JiraField {
 const fieldIdCache = new Map<string, string>()
 
 /** Resolve a custom-field label (as shown on the Jira form) to its `customfield_XXXXX` id. */
-async function resolveFieldId(label: string): Promise<string | null> {
+export async function resolveFieldId(label: string): Promise<string | null> {
   const key = label.trim().toLowerCase()
   if (!key) return null
   const cached = fieldIdCache.get(key)
@@ -29,7 +29,7 @@ async function resolveFieldId(label: string): Promise<string | null> {
 }
 
 /** Identity payload shape Jira expects — differs between Cloud v3 (accountId) and Server/DC v2 (name). */
-function myIdentityPayload(): Record<string, string> | null {
+export function myIdentityPayload(): Record<string, string> | null {
   const { accountId, username } = getMyIdentity()
   if (getApiVersion() === '2') return username ? { name: username } : null
   return accountId ? { accountId } : null
