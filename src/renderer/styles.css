@@ -1165,6 +1165,16 @@ body {
 .gl-add-login .btn {
   white-space: nowrap;
 }
+.qa-prompt {
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 .gl-diag {
   margin-top: 6px;
   border: 1px solid var(--border);

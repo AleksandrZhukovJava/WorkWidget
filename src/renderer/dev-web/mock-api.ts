@@ -343,9 +343,11 @@ const api: JiraWidgetApi = {
   refreshIssues: async () => currentPayload(),
   getTransitions: async () => [
     { id: '21', name: 'Start Progress', toStatus: 'In Progress' },
+    { id: '41', name: 'Ready for QA', toStatus: 'Testing', requiresQa: true },
     { id: '31', name: 'Resolve', toStatus: 'Done' }
   ],
   doTransition: async () => ({ ok: true }),
+  doTransitionQa: async () => ({ ok: true }),
   getStatuses: async () => ['To Do', 'In Progress', 'In Review', 'Done'],
   // Pretend the issue is already "In Progress" so picking it exercises the skip path.
   transitionTo: async (_key: string, status: string) =>

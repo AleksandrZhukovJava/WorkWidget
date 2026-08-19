@@ -24,6 +24,9 @@ export function IssueDetail({
   const [comment, setComment] = useState('')
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
+  // A transition whose screen requires the QA field — shows the QA fill prompt before proceeding.
+  const [qaPrompt, setQaPrompt] = useState<{ id: string; toStatus: string } | null>(null)
+  const [qaUser, setQaUser] = useState('')
 
   const [blockEditing, setBlockEditing] = useState(false)
   const [blockText, setBlockText] = useState(issue.blockReason)
@@ -283,8 +286,17 @@ export function IssueDetail({
                   disabled={busy || !transitions?.length}
                   onChange={(e) => {
                     const id = e.target.value
-                    if (id) void run('Статус изменён', () => window.api.doTransition(issue.key, id))
                     e.target.value = ''
+                    if (!id) return
+                    const t = transitions?.find((x) => x.id === id)
+                    if (t?.requiresQa) {
+                      // Required QA field on the transition screen — collect it first.
+                      setQaUser('')
+                      setMsg(null)
+                      setQaPrompt({ id, toStatus: t.toStatus })
+                    } else {
+                      void run('Статус изменён', () => window.api.doTransition(issue.key, id))
+                    }
                   }}
                 >
                   <option value="" disabled>
@@ -297,10 +309,48 @@ export function IssueDetail({
                   {transitions?.map((t) => (
                     <option key={t.id} value={t.id}>
                       {t.name} → {t.toStatus}
+                      {t.requiresQa ? ' (нужен QA)' : ''}
                     </option>
                   ))}
                 </select>
               </div>
+
+              {qaPrompt && (
+                <div className="qa-prompt">
+                  <div className="hint">
+                    Переход в «{qaPrompt.toStatus}» требует поле QA. По умолчанию — ты; можно
+                    указать другой @логин.
+                  </div>
+                  <div className="row">
+                    <input
+                      placeholder="твой логин (пусто = ты)"
+                      value={qaUser}
+                      disabled={busy}
+                      onChange={(e) => setQaUser(e.target.value)}
+                    />
+                    <button
+                      className="btn btn--primary"
+                      disabled={busy}
+                      onClick={() =>
+                        void run(`Переведено в «${qaPrompt.toStatus}»`, async () => {
+                          const res = await window.api.doTransitionQa(
+                            issue.key,
+                            qaPrompt.id,
+                            qaUser.trim() || undefined
+                          )
+                          if (res.ok) setQaPrompt(null)
+                          return res
+                        })
+                      }
+                    >
+                      Заполнить QA и перейти
+                    </button>
+                    <button className="btn" disabled={busy} onClick={() => setQaPrompt(null)}>
+                      Отмена
+                    </button>
+                  </div>
+                </div>
+              )}
               <div className="row">
                 <select
                   defaultValue=""
