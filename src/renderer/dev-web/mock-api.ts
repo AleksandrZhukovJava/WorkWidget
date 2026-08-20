@@ -663,7 +663,10 @@ TimeoutException: payment gateway did not respond
     { iid: 77, projectId: 101, title: 'feat(OPS-1390): reset-password email', sourceBranch: 'feature/OPS-1390', targetBranch: 'develop', webUrl: 'https://gitlab.example.com/demo/web-app/-/merge_requests/77', author: 'Иван Петров', reviewers: ['Пётр Иванов'], jiraKey: 'OPS-1390', approved: false, updatedAt: new Date(now - 3600000).toISOString() }
   ],
   gitlabMyMRs: async () => [
-    { iid: 42, projectId: 101, title: 'feat(OPS-1421): fix billing sync', sourceBranch: 'feature/OPS-1421', targetBranch: 'develop', webUrl: 'https://gitlab.example.com/demo/web-app/-/merge_requests/42', author: 'Пётр Иванов', reviewers: ['Анна Смирнова'], jiraKey: 'OPS-1421', approved: true, updatedAt: new Date(now - 1800000).toISOString() }
+    { iid: 42, projectId: 101, title: 'feat(OPS-1421): fix billing sync', sourceBranch: 'feature/OPS-1421', targetBranch: 'develop', webUrl: 'https://gitlab.example.com/demo/web-app/-/merge_requests/42', author: 'Пётр Иванов', reviewers: ['Анна Смирнова'], jiraKey: 'OPS-1421', approved: true, updatedAt: new Date(now - 1800000).toISOString() },
+    // Reproduces the bug: the service name carries a `-<n>` token that the FIRST-match parser
+    // grabbed ("SERVICE-2") instead of the real key OPS-1355 → chip never linked.
+    { iid: 88, projectId: 102, title: 'employee-operation-service-2: OPS-1355 экспорт CSV', sourceBranch: 'employee-operation-service-2/feature/OPS-1355', targetBranch: 'main', webUrl: 'https://gitlab.example.com/demo/api/-/merge_requests/88', author: 'Пётр Иванов', reviewers: [], jiraKey: 'SERVICE-2', approved: false, updatedAt: new Date(now - 600000).toISOString() }
   ],
   gitlabDetectProject: async () => ({ id: 101, pathWithNamespace: 'demo/web-app', webUrl: 'https://gitlab.example.com/demo/web-app', defaultBranch: 'develop' }),
 
