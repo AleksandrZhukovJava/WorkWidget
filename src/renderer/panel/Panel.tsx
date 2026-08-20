@@ -4,6 +4,7 @@ import { IssueDetail } from './IssueDetail'
 import { UpdateBanner } from '../shared/UpdateBanner'
 import { GitlabView, type MrPrefill } from './GitlabView'
 import { PRIORITY_COLOR, PRIORITY_LABEL, PRIORITY_LEVELS } from '@shared/priority'
+import { parseAllJiraKeys } from '@shared/jira-key'
 import { greeting } from '@shared/greeting'
 import type {
   AgentPatchResult,
@@ -185,8 +186,13 @@ export function Panel({
       .then(([reviews, mine]) => {
         const map: Record<string, GitlabMR[]> = {}
         for (const mr of [...mine, ...reviews]) {
-          if (!mr.jiraKey) continue
-          ;(map[mr.jiraKey] ??= []).push(mr)
+          // Index under every Jira key in the title+branch (not just mr.jiraKey's first match),
+          // so an MR whose branch/title carries the service name still links to the real task.
+          const keys = parseAllJiraKeys(`${mr.title} ${mr.sourceBranch}`)
+          for (const k of keys) {
+            const list = (map[k] ??= [])
+            if (!list.some((x) => x.projectId === mr.projectId && x.iid === mr.iid)) list.push(mr)
+          }
         }
         setMrsByKey(map)
       })
