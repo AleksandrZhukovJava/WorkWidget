@@ -350,7 +350,15 @@ export interface CreateField {
   options?: CreateFieldOption[]
 }
 
-export type NotificationType = 'new' | 'status' | 'due' | 'comment' | 'review' | 'token' | 'mr'
+export type NotificationType =
+  | 'new'
+  | 'status'
+  | 'due'
+  | 'comment'
+  | 'review'
+  | 'token'
+  | 'mr'
+  | 'vpn'
 
 /** A single detected Jira event, shown in the «Уведомления» tab and (optionally) as a toast. */
 export interface NotificationEvent {

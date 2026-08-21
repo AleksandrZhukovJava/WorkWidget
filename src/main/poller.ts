@@ -15,7 +15,7 @@ import {
 } from './store/settings'
 import { hasCompleteCredentials } from './store/credentials'
 import { vpnCached, refreshVpn } from './dashboard'
-import { detectEvents, detectGitlabEvents, checkGitlabTokenExpiry } from './notify'
+import { detectEvents, detectGitlabEvents, checkGitlabTokenExpiry, notifyVpnChange } from './notify'
 import { unreadCount } from './store/events'
 import { sortByPriority } from '@shared/priority'
 import type { JiraIssue, WidgetAppearance } from '@shared/types'
@@ -204,7 +204,11 @@ export function startPolling(): void {
     void refreshVpn().then(() => {
       const vpn = getSettings().dashboard.vpn ? vpnCached() : null
       if (vpn !== lastVpn) {
+        const prev = lastVpn
         lastVpn = vpn
+        // Notify only on a real on↔off flip — not the initial null→value or when the
+        // indicator gets toggled off (bool→null).
+        if (typeof prev === 'boolean' && typeof vpn === 'boolean') notifyVpnChange(vpn)
         broadcast()
       }
     })

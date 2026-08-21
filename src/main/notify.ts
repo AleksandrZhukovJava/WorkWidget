@@ -274,6 +274,24 @@ export function checkGitlabTokenExpiry(): void {
  * Record a notification that we auto-moved a Jira issue to a new status (triggered by a GitLab
  * MR event). Shown with the status icon; honors the notifications master toggle + toast pref.
  */
+/** Notify when the VPN goes up or down (called only on a real on↔off transition). */
+export function notifyVpnChange(on: boolean): void {
+  const { notifications: n } = getSettings()
+  if (!n.enabled) return
+  const event: NotificationEvent = {
+    id: randomUUID(),
+    type: 'vpn',
+    issueKey: 'VPN',
+    issueSummary: on ? 'VPN включён' : 'VPN выключен',
+    text: on ? 'соединение восстановлено' : 'соединение разорвано',
+    url: '',
+    at: new Date().toISOString(),
+    read: false
+  }
+  addEvents([event])
+  if (n.push) raiseToast(event)
+}
+
 /** A notification for an MR the user just created, with a clickable link to it. */
 export function notifyMrCreated(
   jiraKey: string | null,
