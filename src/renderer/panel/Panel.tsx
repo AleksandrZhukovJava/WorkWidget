@@ -433,8 +433,10 @@ export function Panel({
     return (
       <div className="extra-field" key={f.id}>
         <span className="extra-field__name">
-          {f.name}
-          {f.required && <b style={{ color: 'var(--breach)' }}> *</b>}
+          <span className="extra-field__label" title={f.name}>
+            {f.name}
+            {f.required && <b style={{ color: 'var(--breach)' }}> *</b>}
+          </span>
           <button
             className={`extra-field__pin ${isPinnedField(f.id) ? 'is-on' : ''}`}
             title={
