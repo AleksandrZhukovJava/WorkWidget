@@ -466,7 +466,8 @@ const api: JiraWidgetApi = {
       { id: 'duedate', name: 'Due date', required: false, control: 'date' as const },
       { id: 'labels', name: 'Labels', required: false, control: 'labels' as const },
       { id: 'customfield_200', name: 'Story Points', required: false, control: 'number' as const },
-      { id: 'customfield_300', name: 'Ссылка на дашборд', required: false, control: 'text' as const }
+      { id: 'customfield_300', name: 'Ссылка на дашборд', required: false, control: 'text' as const },
+      { id: 'customfield_400', name: 'Очень длинное название необязательного поля из Jira для проверки закрепления', required: false, control: 'text' as const }
     ]
   }),
   createIssue: async () => ({ ok: true, key: 'OSE-9999' }),
