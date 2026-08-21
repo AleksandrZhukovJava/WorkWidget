@@ -59,7 +59,8 @@ const EVENT_ICON: Record<NotificationEvent['type'], string> = {
   comment: '💬',
   review: '👀',
   token: '🔑',
-  mr: '🦊'
+  mr: '🦊',
+  vpn: '🛡️'
 }
 
 /** Short relative time like "5 мин", "2 ч", "3 дн". */

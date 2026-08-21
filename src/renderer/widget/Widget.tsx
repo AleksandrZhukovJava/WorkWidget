@@ -19,7 +19,8 @@ const EVENT_ICON: Record<NotificationEvent['type'], string> = {
   comment: '💬',
   review: '👀',
   token: '🔑',
-  mr: '🦊'
+  mr: '🦊',
+  vpn: '🛡️'
 }
 
 const DEFAULT_APPEARANCE: WidgetAppearance = {
