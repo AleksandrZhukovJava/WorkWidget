@@ -213,7 +213,14 @@ export function Widget(): JSX.Element {
         setInteractive(true)
         return
       }
-      const dist = Math.hypot(e.clientX - CENTER, e.clientY - CENTER)
+      // While the window is click-through, Windows forwards mouse-move coords SCALED by the
+      // display's devicePixelRatio (long-standing Electron bug with setIgnoreMouseEvents+forward),
+      // so on a scaled display only a fraction of the widget (the left/top part) would react.
+      // Undo that scaling to get real CSS px. Once the window is interactive, coords are native.
+      const scale = interactive.current ? 1 : window.devicePixelRatio || 1
+      const cx = e.clientX / scale
+      const cy = e.clientY / scale
+      const dist = Math.hypot(cx - CENTER, cy - CENTER)
       // Re-arm hover only after the cursor has fully left the orbit zone.
       if (suppressUntilLeave.current) {
         if (dist > ORBIT_R) suppressUntilLeave.current = false
