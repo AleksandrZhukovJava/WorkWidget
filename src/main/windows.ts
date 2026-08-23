@@ -163,11 +163,19 @@ export function beginWidgetDrag(): void {
   grabOffset = { dx: c.x - winX, dy: c.y - winY }
   isDragging = true
   if (dragTimer) clearInterval(dragTimer)
+  // Only reposition when the target actually changes. Re-issuing setPosition with the same
+  // coords every tick made the window slowly drift on scaled displays (DIP↔physical rounding),
+  // so a still cursor could still "creep" the widget. Skipping no-op moves stops that.
+  let lastSet: { x: number; y: number } | null = null
   dragTimer = setInterval(() => {
     if (!widgetWin || widgetWin.isDestroyed() || !grabOffset) return
     const p = screen.getCursorScreenPoint()
     // setPosition requires integers — fractional coords (scaled displays) throw otherwise.
-    widgetWin.setPosition(Math.round(p.x - grabOffset.dx), Math.round(p.y - grabOffset.dy))
+    const x = Math.round(p.x - grabOffset.dx)
+    const y = Math.round(p.y - grabOffset.dy)
+    if (lastSet && lastSet.x === x && lastSet.y === y) return // cursor hasn't moved — don't nudge
+    lastSet = { x, y }
+    widgetWin.setPosition(x, y)
   }, 8)
 }
 
