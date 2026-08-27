@@ -192,6 +192,8 @@ export interface AppSettings {
   gitlabAutomation: GitlabAutomation
   /** warn this many days before the GitLab token expires (0 = don't warn) */
   gitlabTokenWarnDays: number
+  /** how often (in days) to repeat the token-expiry reminder; 1 = once a day */
+  gitlabTokenRemindEveryDays: number
   /**
    * How approved MRs behave in «Ждут моего ревью»:
    *  - 'has'     — hide once I've approved at least once (stays hidden even if the approval later drops);
