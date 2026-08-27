@@ -237,7 +237,8 @@ export async function detectGitlabEvents(): Promise<GitlabMR[]> {
  * i.e. exactly one reminder per day (fired at startup and on each poll). Best-effort.
  */
 export function checkGitlabTokenExpiry(): void {
-  const { gitlabTokenWarnDays: warnDays, notifications: n } = getSettings()
+  const { gitlabTokenWarnDays: warnDays, gitlabTokenRemindEveryDays, notifications: n } =
+    getSettings()
   const expiry = getGitlabTokenExpiry()
   if (!hasGitlab() || !expiry || warnDays <= 0) return
 
@@ -254,8 +255,16 @@ export function checkGitlabTokenExpiry(): void {
         ? 'токен GitLab истекает сегодня — обновите'
         : `токен GitLab истекает через ${daysLeft} дн. — обновите`
 
+  // Bucket the reminder into windows of `every` days: the dedup stamp is stable within a
+  // window and changes between windows, so addEvents (dedup on type:issueKey:at) fires the
+  // reminder at most once per window. every=1 → daily, as before.
+  const every = Math.max(1, Math.round(gitlabTokenRemindEveryDays || 1))
+  const dayNum = Math.floor(now.getTime() / 86_400_000)
+  const bucketStart = new Date((dayNum - (dayNum % every)) * 86_400_000)
   const pad = (x: number): string => String(x).padStart(2, '0')
-  const dayStamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+  const stamp = `${bucketStart.getUTCFullYear()}-${pad(bucketStart.getUTCMonth() + 1)}-${pad(
+    bucketStart.getUTCDate()
+  )}`
   const event: NotificationEvent = {
     id: randomUUID(),
     type: 'token',
@@ -263,10 +272,10 @@ export function checkGitlabTokenExpiry(): void {
     issueSummary: `Токен истекает ${expiry}`,
     text,
     url: '',
-    at: `${dayStamp}T09:00:00`, // day-stable → one reminder per calendar day
+    at: `${stamp}T09:00:00`, // stable within the reminder window → one reminder per window
     read: false
   }
-  addEvents([event]) // dedup on type:issueKey:at handles the once-per-day guarantee
+  addEvents([event]) // dedup on type:issueKey:at handles the once-per-window guarantee
   if (n.push) raiseToast(event)
 }
 
