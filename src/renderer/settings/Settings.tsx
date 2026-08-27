@@ -491,15 +491,15 @@ export function Settings({
               />
             </div>
             <div className="field" style={{ width: 170 }}>
-              <label>Повторять каждые (дней)</label>
+              <label>Повторять каждые (часов)</label>
               <input
                 type="number"
                 min={1}
-                max={30}
-                value={settings?.gitlabTokenRemindEveryDays ?? 1}
+                max={168}
+                value={settings?.gitlabTokenRemindEveryHours ?? 24}
                 onChange={(e) =>
                   void patchSettings({
-                    gitlabTokenRemindEveryDays: Math.max(1, Math.min(30, Number(e.target.value) || 1))
+                    gitlabTokenRemindEveryHours: Math.max(1, Math.min(168, Number(e.target.value) || 24))
                   })
                 }
               />
@@ -508,7 +508,7 @@ export function Settings({
           <p className="hint">
             Если дата задана — виджет напоминает, что токен скоро истекает (за указанное число
             дней). «Предупреждать за» — с какого момента начинать, «Повторять каждые» — как часто
-            повторять напоминание (1 = раз в день). 0 в первом поле — не напоминать вовсе.
+            повторять напоминание в часах (24 = раз в день). 0 в первом поле — не напоминать вовсе.
           </p>
           <div className="row">
             <button
