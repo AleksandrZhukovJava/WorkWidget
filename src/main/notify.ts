@@ -271,8 +271,10 @@ export function checkGitlabTokenExpiry(): void {
     at: stamp, // stable within the reminder window → one reminder per window
     read: false
   }
-  addEvents([event]) // dedup on type:issueKey:at handles the once-per-window guarantee
-  if (n.push) raiseToast(event)
+  // dedup on type:issueKey:at guarantees one per window; toast ONLY when it was actually added,
+  // otherwise every poll (~3 min) would pop a toast even though nothing new happened.
+  const added = addEvents([event])
+  if (added.length > 0 && n.push) raiseToast(event)
 }
 
 /**
