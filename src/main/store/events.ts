@@ -28,14 +28,17 @@ export function unreadCount(): number {
   return prune().filter((e) => !e.read).length
 }
 
-/** Prepend new events (already newest-first within the batch), dedupe, cap. */
-export function addEvents(events: NotificationEvent[]): void {
-  if (events.length === 0) return
+/** Prepend new events (already newest-first within the batch), dedupe, cap. Returns the ones
+ *  that were actually new (not deduped) — callers gate a toast on this so a repeating check
+ *  (e.g. the token-expiry reminder, run every poll) doesn't pop a toast every cycle. */
+export function addEvents(events: NotificationEvent[]): NotificationEvent[] {
+  if (events.length === 0) return []
   const existing = store.get('events')
   const seen = new Set(existing.map((e) => `${e.type}:${e.issueKey}:${e.at}`))
   const fresh = events.filter((e) => !seen.has(`${e.type}:${e.issueKey}:${e.at}`))
-  if (fresh.length === 0) return
+  if (fresh.length === 0) return []
   store.set('events', [...fresh, ...existing].slice(0, CAP))
+  return fresh
 }
 
 export function markAllRead(): void {
