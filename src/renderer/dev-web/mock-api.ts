@@ -238,7 +238,7 @@ const settings: AppSettings = {
     readyForTestStatus: 'Ready for Test'
   },
   gitlabTokenWarnDays: 7,
-  gitlabTokenRemindEveryDays: 1,
+  gitlabTokenRemindEveryHours: 24,
   gitlabReviewApprovalMode: 'current' as const,
   gitlabFavoriteReviewers: [{ id: 12, username: 'a.smirnova', name: 'Анна Смирнова' }],
   gitlabAutoReviewers: [{ id: 12, username: 'a.smirnova', name: 'Анна Смирнова' }],
