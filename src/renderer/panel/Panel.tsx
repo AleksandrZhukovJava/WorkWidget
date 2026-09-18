@@ -1758,58 +1758,107 @@ export function Panel({
             ))}
           </div>
         </>
+      ) : view === 'watched' ? (
+        // Plain link list — no per-task actions. Only add (search) / remove from the list.
+        <div className="panel__list">
+          <div className="watch-add">
+            <div className="panel__search">
+              <input
+                placeholder="Добавить задачу: номер (OPS-1234) или название…"
+                value={watchQuery}
+                onChange={(e) => setWatchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') void runWatchSearch()
+                }}
+              />
+              <button
+                className="btn"
+                disabled={watchBusy || !watchQuery.trim()}
+                onClick={() => void runWatchSearch()}
+              >
+                {watchBusy ? <span className="spinner" /> : 'Найти'}
+              </button>
+              {watchResults !== null && (
+                <button className="btn btn--icon" title="Скрыть результаты" onClick={clearWatchSearch}>
+                  ✕
+                </button>
+              )}
+            </div>
+            {watchResults !== null && (
+              <div className="watch-add__results">
+                <div className="hint" style={{ padding: '0 2px 4px' }}>
+                  {watchResults.length === 0
+                    ? 'Ничего не найдено — проверь номер задачи'
+                    : 'Нажми 🔖, чтобы добавить в «Слежу»'}
+                </div>
+                {watchResults.map((r) => {
+                  const on = issues.some((i) => i.key === r.key && i.watched)
+                  return (
+                    <div className="issue issue--watch" key={r.key}>
+                      <div className="issue__top">
+                        <span
+                          className="issue__key"
+                          title="Открыть в браузере"
+                          onClick={() => r.url && void window.api.openInBrowser(r.url)}
+                        >
+                          {r.key}
+                        </span>
+                        {r.status && <span className="issue__status">{r.status}</span>}
+                        <button
+                          className={`issue__watch ${on ? 'is-on' : ''}`}
+                          title={on ? 'Убрать из «Слежу»' : 'Добавить в «Слежу»'}
+                          onClick={() => void window.api.setWatched(r.key, !on)}
+                        >
+                          🔖
+                        </button>
+                      </div>
+                      <div className="issue__summary">{r.summary}</div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+          {watched.length === 0 && (
+            <div className="panel__empty">
+              Список пуст — найди задачу по номеру выше или отметь 🔖 на карточке
+            </div>
+          )}
+          {watched.map((i) => (
+            <div className="issue issue--watch" key={i.key}>
+              <div className="issue__top">
+                {i.url ? (
+                  <span
+                    className="issue__key"
+                    title="Открыть в браузере"
+                    onClick={() => void window.api.openInBrowser(i.url)}
+                  >
+                    {i.key}
+                  </span>
+                ) : (
+                  <span className="issue__key issue__key--local" title="Своя задача">
+                    Своя
+                  </span>
+                )}
+                {i.status && <span className="issue__status">{i.status}</span>}
+                <button
+                  className="issue__watch is-on"
+                  title="Убрать из «Слежу»"
+                  onClick={() => void window.api.setWatched(i.key, false)}
+                >
+                  🔖
+                </button>
+              </div>
+              <div className="issue__summary">{i.summary}</div>
+            </div>
+          ))}
+        </div>
       ) : (
         <div className="panel__list">
           {view === 'completed' && (
             <div className="hint" style={{ padding: '0 2px' }}>
               Здесь — завершённые свои задачи. Закрытые задачи Jira смотри во вкладке
               «История».
-            </div>
-          )}
-          {view === 'watched' && (
-            <div className="watch-add">
-              <div className="panel__search">
-                <input
-                  placeholder="Добавить задачу: номер (OPS-1234) или название…"
-                  value={watchQuery}
-                  onChange={(e) => setWatchQuery(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') void runWatchSearch()
-                  }}
-                />
-                <button
-                  className="btn"
-                  disabled={watchBusy || !watchQuery.trim()}
-                  onClick={() => void runWatchSearch()}
-                >
-                  {watchBusy ? <span className="spinner" /> : 'Найти'}
-                </button>
-                {watchResults !== null && (
-                  <button className="btn btn--icon" title="Скрыть результаты" onClick={clearWatchSearch}>
-                    ✕
-                  </button>
-                )}
-              </div>
-              {watchResults !== null && (
-                <div className="watch-add__results">
-                  <div className="hint" style={{ padding: '0 2px 4px' }}>
-                    {watchResults.length === 0
-                      ? 'Ничего не найдено — проверь номер задачи'
-                      : 'Нажми 🔖 на карточке, чтобы добавить в «Слежу»'}
-                  </div>
-                  {watchResults.map((r) => {
-                    const live = issues.find((i) => i.key === r.key)
-                    return (
-                      <IssueCard
-                        key={r.key}
-                        issue={{ ...r, watched: live?.watched ?? false }}
-                        onOpenDetail={(i) => setDetailKey(i.key)}
-                        mrs={mrsByKey[r.key]}
-                      />
-                    )
-                  })}
-                </div>
-              )}
             </div>
           )}
           {error && <div className="panel__error">{error}</div>}
@@ -1830,9 +1879,7 @@ export function Panel({
                       ? 'Нет заблокированных задач'
                       : view === 'completed'
                         ? 'Пока нет завершённых задач'
-                        : view === 'watched'
-                          ? 'Список пуст — найди задачу по номеру выше или отметь 🔖 на карточке'
-                          : 'Все задачи распределены'}
+                        : 'Все задачи распределены'}
                 </div>
               )}
               {activeList.map((issue) => (
@@ -1850,10 +1897,7 @@ export function Panel({
 
       {detailKey &&
         (() => {
-          // Fall back to search results so a not-yet-watched result card can still open detail.
-          const di =
-            issues.find((i) => i.key === detailKey) ??
-            watchResults?.find((i) => i.key === detailKey)
+          const di = issues.find((i) => i.key === detailKey)
           return di ? (
             <IssueDetail
               issue={di}

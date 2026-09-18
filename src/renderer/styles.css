@@ -893,6 +893,10 @@ body {
 .watch-add__results {
   padding: 6px 2px 0;
 }
+/* «Слежу» rows: plain link list, un-track button pinned to the right of the top line. */
+.issue--watch .issue__top .issue__watch {
+  margin-left: auto;
+}
 
 .dash__toggles {
   display: flex;
