@@ -465,6 +465,12 @@ export interface JiraIssue {
   current?: boolean
   /** locally «watched» (Слежу) — added to the watch list; never auto-cleared */
   watched?: boolean
+  /**
+   * Fetched purely because it's on the watch list, not because it's «mine» — e.g. a task
+   * added to «Слежу» by key that isn't assigned to the user. It shows ONLY in the «Слежу»
+   * view and is excluded from every other tab, the main list and the widget counter.
+   */
+  external?: boolean
   /** local, personal checklist for tracking progress; never synced to Jira/GitLab */
   checklist: ChecklistItem[]
 }

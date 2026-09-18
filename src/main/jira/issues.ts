@@ -55,6 +55,53 @@ export async function getIssueSummary(key: string): Promise<string> {
   }
 }
 
+/**
+ * Fetch a single issue by key and map it to our shape. Returns null if it doesn't exist or
+ * isn't accessible. Used by the «Слежу» watch list to pull in a task the user isn't assigned
+ * (so it can be watched by key, not only from the user's own task list).
+ */
+export async function getIssueByKey(key: string): Promise<JiraIssue | null> {
+  const baseUrl = getSiteUrl()
+  const isServer = getApiVersion() === '2'
+  try {
+    const raw = await jiraRequest<RawIssue>(`${restApi()}/issue/${encodeURIComponent(key)}`, {
+      query: { fields: FIELDS.join(',') }
+    })
+    const sla = isServer ? null : await getSla(raw.key).catch(() => null)
+    return mapIssue(raw, baseUrl, sla)
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Search issues to add to «Слежу»: an exact key lookup first (e.g. "OPS-1234"), then a
+ * best-effort summary/text search. Never throws — returns [] on any failure.
+ */
+export async function searchIssues(query: string): Promise<JiraIssue[]> {
+  const q = query.trim()
+  if (!q) return []
+  const baseUrl = getSiteUrl()
+  const isServer = getApiVersion() === '2'
+  // A bare key like PROJ-123 → direct GET (works even when text search is restricted).
+  if (/^[A-Za-z][A-Za-z0-9]+-\d+$/.test(q)) {
+    const one = await getIssueByKey(q.toUpperCase())
+    if (one) return [one]
+  }
+  const searchPath = isServer ? '/rest/api/2/search' : '/rest/api/3/search/jql'
+  const esc = q.replace(/["\\]/g, '\\$&')
+  const jql = `summary ~ "${esc}*" ORDER BY updated DESC`
+  try {
+    const resp = await jiraRequest<JiraSearchResponse>(searchPath, {
+      method: 'POST',
+      body: { jql, maxResults: 15, fields: FIELDS }
+    })
+    return (resp.issues ?? []).map((raw) => mapIssue(raw, baseUrl, null))
+  } catch {
+    return []
+  }
+}
+
 interface ResolvedSearchResponse {
   issues: { key: string; fields: { summary: string; resolutiondate?: string | null } }[]
 }

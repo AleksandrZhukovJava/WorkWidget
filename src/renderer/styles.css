@@ -875,6 +875,25 @@ body {
   padding: 8px 8px 0;
 }
 
+/* «Слежу»: add-by-search box + results area above the watch list. */
+.watch-add {
+  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  margin-bottom: 6px;
+  padding-bottom: 6px;
+}
+.watch-add .panel__search {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.watch-add .panel__search input {
+  flex: 1;
+  min-width: 0;
+}
+.watch-add__results {
+  padding: 6px 2px 0;
+}
+
 .dash__toggles {
   display: flex;
   gap: 12px;

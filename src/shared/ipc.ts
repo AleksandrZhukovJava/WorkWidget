@@ -31,6 +31,7 @@ export const IPC = {
   setBlocked: 'issues:setBlocked',
   setCurrent: 'issues:setCurrent',
   setWatched: 'issues:setWatched',
+  watchSearch: 'issues:watchSearch',
   setChecklist: 'issues:setChecklist',
   addLocalTask: 'issues:addLocalTask',
   updateLocalTask: 'issues:updateLocalTask',

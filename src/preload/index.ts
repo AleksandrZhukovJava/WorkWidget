@@ -119,6 +119,8 @@ const api = {
     ipcRenderer.invoke(IPC.setCurrent, key, on),
   setWatched: (key: string, on: boolean): Promise<ActionResult> =>
     ipcRenderer.invoke(IPC.setWatched, key, on),
+  watchSearch: (query: string): Promise<JiraIssue[]> =>
+    ipcRenderer.invoke(IPC.watchSearch, query),
   setChecklist: (key: string, items: ChecklistItem[]): Promise<ActionResult> =>
     ipcRenderer.invoke(IPC.setChecklist, key, items),
   addLocalTask: (summary: string, priority: number): Promise<ActionResult> =>
