@@ -37,7 +37,7 @@ import {
   transitionToStatus
 } from './jira/transitions'
 import { getCompletionsForDate } from './history'
-import { getIssueDescription, getIssueSummary } from './jira/issues'
+import { getIssueDescription, getIssueSummary, searchIssues } from './jira/issues'
 import { listEvents, markAllRead, clearEvents } from './store/events'
 import { refreshVpn } from './dashboard'
 import { addComment } from './jira/comments'
@@ -83,7 +83,14 @@ import type {
   CreateMrResult,
   GitlabCredentialsInput
 } from '@shared/types'
-import { getCachedIssues, refreshNow, restartPolling, applyLocalState, rebroadcast } from './poller'
+import {
+  getCachedIssues,
+  refreshNow,
+  restartPolling,
+  applyLocalState,
+  rebroadcast,
+  refreshWatchedExtra
+} from './poller'
 import { getUpdateStatus, check as checkForUpdates, installUpdate } from './updater'
 import { notifyAutoTransition, notifyMrCreated } from './notify'
 import {
@@ -288,11 +295,17 @@ export function registerIpc(): void {
     return { ok: true }
   })
 
-  ipcMain.handle(IPC.setWatched, (_e, key: string, on: boolean) => {
+  ipcMain.handle(IPC.setWatched, async (_e, key: string, on: boolean) => {
     setWatched(key, on)
+    // Pull in (or drop) the issue if it isn't one of «my» tasks, so a watched-by-key task
+    // shows up in «Слежу». Best-effort; rebroadcast regardless so the flag updates instantly.
+    await refreshWatchedExtra().catch(() => {})
     rebroadcast() // «watched» flag is recomputed in getCachedIssues
     return { ok: true }
   })
+
+  // Search Jira (by key or summary) for a task to add to «Слежу».
+  ipcMain.handle(IPC.watchSearch, (_e, query: string) => searchIssues(query).catch(() => []))
 
   // Purely local per-task checklist — never touches Jira/GitLab. Whole-array replace.
   ipcMain.handle(IPC.setChecklist, (_e, key: string, items: ChecklistItem[]) => {
@@ -350,8 +363,9 @@ export function registerIpc(): void {
   })
 
   ipcMain.handle(IPC.getDashboard, async (): Promise<DashboardData> => {
-    // Exclude already-completed items — the dashboard reflects active work.
-    const issues = getCachedIssues().issues.filter((i) => !i.done)
+    // Exclude already-completed items and pulled-in watched tasks — the dashboard reflects
+    // the user's own active work.
+    const issues = getCachedIssues().issues.filter((i) => !i.done && !i.external)
     const byPriority: Record<number, number> = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
     const statusMap = new Map<string, number>()
     let blocked = 0

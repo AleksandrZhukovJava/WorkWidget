@@ -143,6 +143,74 @@ const issues: JiraIssue[] = [
   }
 ]
 
+/**
+ * Issues NOT assigned to the user — не входят в «мои задачи», но их можно найти через
+ * watchSearch (по ключу или тексту) и добавить в «Слежу». В реальном приложении их
+ * подтягивает poller.refreshWatchedExtra; здесь это статический каталог для превью.
+ */
+const catalog: JiraIssue[] = [
+  {
+    key: 'OPS-1207',
+    summary: 'Ревью архитектуры платёжного шлюза',
+    status: 'In Review',
+    statusCategory: 'indeterminate',
+    issueType: 'Task',
+    priority: 'Medium',
+    assignee: 'Иван Петров',
+    dueDate: null,
+    updated: new Date(now - 5 * 3600000).toISOString(),
+    url: 'https://example.atlassian.net/browse/OPS-1207',
+    sla: null,
+    localPriority: 0,
+    blocked: false,
+    blockReason: '',
+    isLocal: false,
+    done: false,
+    doneAt: null,
+    checklist: []
+  },
+  {
+    key: 'DEV-980',
+    summary: 'Вынести общий HTTP-клиент в отдельную библиотеку',
+    status: 'To Do',
+    statusCategory: 'new',
+    issueType: 'Story',
+    priority: 'High',
+    assignee: 'Анна Смирнова',
+    dueDate: null,
+    updated: new Date(now - 26 * 3600000).toISOString(),
+    url: 'https://example.atlassian.net/browse/DEV-980',
+    sla: null,
+    localPriority: 0,
+    blocked: false,
+    blockReason: '',
+    isLocal: false,
+    done: false,
+    doneAt: null,
+    checklist: []
+  },
+  {
+    key: 'INFRA-441',
+    summary: 'Обновить кластер Kubernetes до 1.29',
+    status: 'Done',
+    statusCategory: 'done',
+    issueType: 'Task',
+    priority: 'Medium',
+    assignee: 'Дмитрий Ким',
+    dueDate: null,
+    updated: new Date(now - 72 * 3600000).toISOString(),
+    url: 'https://example.atlassian.net/browse/INFRA-441',
+    sla: null,
+    localPriority: 0,
+    blocked: false,
+    blockReason: '',
+    isLocal: false,
+    done: false,
+    doneAt: null,
+    checklist: []
+  }
+]
+
 const settings: AppSettings = {
   pollIntervalMinutes: 3,
   jql: 'assignee = currentUser() AND statusCategory != Done ORDER BY duedate ASC',
@@ -248,7 +316,8 @@ const settings: AppSettings = {
   taskBlocks: [],
   countBlocked: false,
   current: [],
-  watched: ['OPS-1421', 'OPS-1355', 'OPS-1290'],
+  // OPS-1207 is not «mine» — it's pulled in from the catalog to demo a watched-by-key task.
+  watched: ['OPS-1421', 'OPS-1355', 'OPS-1290', 'OPS-1207'],
   createFieldDefaults: {},
   autostart: false
 }
@@ -277,8 +346,16 @@ function currentPayload(): IssuesPayload {
     current: marked.has(i.key) && !i.blocked && !i.done && i.statusCategory !== 'done',
     watched: watchedSet.has(i.key)
   }))
+  // Pulled-in watched tasks that aren't «mine» (mirrors poller.refreshWatchedExtra): flagged
+  // external so they surface only in «Слежу».
+  const ownKeys = new Set(issues.map((i) => i.key))
+  const extras = settings.watched
+    .filter((k) => !ownKeys.has(k))
+    .map((k) => catalog.find((c) => c.key === k))
+    .filter((c): c is JiraIssue => c !== undefined)
+    .map((c) => ({ ...c, watched: true, external: true }))
   return {
-    issues: withCurrent,
+    issues: [...withCurrent, ...extras],
     error: null,
     vpn: true,
     showStats: true,
@@ -379,6 +456,18 @@ const api: JiraWidgetApi = {
     settings.watched = [...set]
     issueSubs.forEach((cb) => cb(currentPayload()))
     return { ok: true }
+  },
+  watchSearch: async (query: string) => {
+    const q = query.trim().toLowerCase()
+    if (!q) return []
+    const pool = [...issues, ...catalog]
+    if (/^[a-z][a-z0-9]+-\d+$/.test(q)) {
+      const one = pool.find((i) => i.key.toLowerCase() === q)
+      return one ? [one] : []
+    }
+    return pool
+      .filter((i) => i.summary.toLowerCase().includes(q) || i.key.toLowerCase().includes(q))
+      .slice(0, 15)
   },
   setChecklist: async (key: string, items: ChecklistItem[]) => {
     const issue = issues.find((i) => i.key === key)

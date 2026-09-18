@@ -62,7 +62,13 @@ export function Widget(): JSX.Element {
 
   useEffect(() => {
     function apply(p: {
-      issues: { blocked: boolean; done: boolean; localPriority?: number; status?: string }[]
+      issues: {
+        blocked: boolean
+        done: boolean
+        localPriority?: number
+        status?: string
+        external?: boolean
+      }[]
       vpn: boolean | null
       showStats: boolean
       appearance?: WidgetAppearance
@@ -72,7 +78,8 @@ export function Widget(): JSX.Element {
       netError?: boolean
     }): void {
       setNetError(!!p.netError)
-      const notDone = p.issues.filter((i) => !i.done)
+      // Exclude watch-only (external) tasks — they aren't «my» work, so they never count.
+      const notDone = p.issues.filter((i) => !i.done && !i.external)
       // When task blocks define counted statuses, the ring counts exactly those; otherwise
       // the legacy "active" set. Blocked issues are excluded unless countBlocked is on.
       let active = p.countedStatuses

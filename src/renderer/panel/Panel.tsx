@@ -101,6 +101,11 @@ export function Panel({
   const [archived, setArchived] = useState<ArchivedItem[]>([])
   const [query, setQuery] = useState('')
 
+  // «Слежу» add-by-search: look up a Jira task by key/title and add it to the watch list.
+  const [watchQuery, setWatchQuery] = useState('')
+  const [watchResults, setWatchResults] = useState<JiraIssue[] | null>(null)
+  const [watchBusy, setWatchBusy] = useState(false)
+
   const [newDesc, setNewDesc] = useState('')
   const [newPrio, setNewPrio] = useState(0)
 
@@ -767,13 +772,36 @@ export function Panel({
     setNewPrio(0)
   }
 
+  /** Look up Jira tasks (by key or title) to add to «Слежу». */
+  async function runWatchSearch(): Promise<void> {
+    const q = watchQuery.trim()
+    if (!q) {
+      setWatchResults(null)
+      return
+    }
+    setWatchBusy(true)
+    setWatchResults(await window.api.watchSearch(q))
+    setWatchBusy(false)
+  }
+
+  function clearWatchSearch(): void {
+    setWatchQuery('')
+    setWatchResults(null)
+  }
+
   // Blocked and completed tasks live in their own tabs, excluded from inbox/prioritized/local.
   const completed = issues
     .filter((i) => i.done)
     .sort((a, b) => (b.doneAt ?? '').localeCompare(a.doneAt ?? ''))
-  const blocked = issues.filter((i) => !i.done && i.blocked)
-  const prioritized = issues.filter((i) => !i.done && !i.blocked && (i.localPriority ?? 0) > 0)
-  const inbox = issues.filter((i) => !i.done && !i.blocked && (i.localPriority ?? 0) === 0)
+  // «external» = tasks pulled in only because they're watched (not «mine») — they live
+  // exclusively in the «Слежу» tab, never in the priority/inbox/blocked/main lists.
+  const blocked = issues.filter((i) => !i.done && i.blocked && !i.external)
+  const prioritized = issues.filter(
+    (i) => !i.done && !i.blocked && !i.external && (i.localPriority ?? 0) > 0
+  )
+  const inbox = issues.filter(
+    (i) => !i.done && !i.blocked && !i.external && (i.localPriority ?? 0) === 0
+  )
   const localTasks = issues.filter((i) => i.isLocal && !i.done)
   // «Слежу» shows everything the user is watching, including done/blocked — nothing drops out
   // of the watch list on its own; the user removes it explicitly.
@@ -783,8 +811,9 @@ export function Panel({
   // FIRST matching block (so overlapping status lists don't duplicate); the rest go to «Прочее».
   // Issues arrive already priority-sorted, so order within a block reflects priority.
   const blockGroups = (() => {
-    // Blocked issues are excluded — they have their own «Заблокированные» tab.
-    const nonDone = issues.filter((i) => !i.done && !i.blocked)
+    // Blocked issues are excluded — they have their own «Заблокированные» tab. External
+    // (watch-only) tasks are excluded too — they belong solely to the «Слежу» tab.
+    const nonDone = issues.filter((i) => !i.done && !i.blocked && !i.external)
     const assigned = new Set<string>()
     const groups = taskBlocks.map((b) => {
       const items = nonDone.filter((i) => !assigned.has(i.key) && b.statuses.includes(i.status))
@@ -1737,6 +1766,52 @@ export function Panel({
               «История».
             </div>
           )}
+          {view === 'watched' && (
+            <div className="watch-add">
+              <div className="panel__search">
+                <input
+                  placeholder="Добавить задачу: номер (OPS-1234) или название…"
+                  value={watchQuery}
+                  onChange={(e) => setWatchQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') void runWatchSearch()
+                  }}
+                />
+                <button
+                  className="btn"
+                  disabled={watchBusy || !watchQuery.trim()}
+                  onClick={() => void runWatchSearch()}
+                >
+                  {watchBusy ? <span className="spinner" /> : 'Найти'}
+                </button>
+                {watchResults !== null && (
+                  <button className="btn btn--icon" title="Скрыть результаты" onClick={clearWatchSearch}>
+                    ✕
+                  </button>
+                )}
+              </div>
+              {watchResults !== null && (
+                <div className="watch-add__results">
+                  <div className="hint" style={{ padding: '0 2px 4px' }}>
+                    {watchResults.length === 0
+                      ? 'Ничего не найдено — проверь номер задачи'
+                      : 'Нажми 🔖 на карточке, чтобы добавить в «Слежу»'}
+                  </div>
+                  {watchResults.map((r) => {
+                    const live = issues.find((i) => i.key === r.key)
+                    return (
+                      <IssueCard
+                        key={r.key}
+                        issue={{ ...r, watched: live?.watched ?? false }}
+                        onOpenDetail={(i) => setDetailKey(i.key)}
+                        mrs={mrsByKey[r.key]}
+                      />
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
           {error && <div className="panel__error">{error}</div>}
           {groupedActive ? (
             blockGroups.groups.every((g) => g.items.length === 0) &&
@@ -1755,7 +1830,9 @@ export function Panel({
                       ? 'Нет заблокированных задач'
                       : view === 'completed'
                         ? 'Пока нет завершённых задач'
-                        : 'Все задачи распределены'}
+                        : view === 'watched'
+                          ? 'Список пуст — найди задачу по номеру выше или отметь 🔖 на карточке'
+                          : 'Все задачи распределены'}
                 </div>
               )}
               {activeList.map((issue) => (
@@ -1773,7 +1850,10 @@ export function Panel({
 
       {detailKey &&
         (() => {
-          const di = issues.find((i) => i.key === detailKey)
+          // Fall back to search results so a not-yet-watched result card can still open detail.
+          const di =
+            issues.find((i) => i.key === detailKey) ??
+            watchResults?.find((i) => i.key === detailKey)
           return di ? (
             <IssueDetail
               issue={di}
