@@ -117,6 +117,8 @@ const api = {
     ipcRenderer.invoke(IPC.setBlocked, key, reason),
   setCurrent: (key: string, on: boolean): Promise<ActionResult> =>
     ipcRenderer.invoke(IPC.setCurrent, key, on),
+  setWatched: (key: string, on: boolean): Promise<ActionResult> =>
+    ipcRenderer.invoke(IPC.setWatched, key, on),
   setChecklist: (key: string, items: ChecklistItem[]): Promise<ActionResult> =>
     ipcRenderer.invoke(IPC.setChecklist, key, items),
   addLocalTask: (summary: string, priority: number): Promise<ActionResult> =>

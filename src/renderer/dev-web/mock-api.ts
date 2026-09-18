@@ -248,6 +248,7 @@ const settings: AppSettings = {
   taskBlocks: [],
   countBlocked: false,
   current: [],
+  watched: ['OPS-1421', 'OPS-1355', 'OPS-1290'],
   createFieldDefaults: {},
   autostart: false
 }
@@ -270,9 +271,11 @@ let mockNetError = false
 
 function currentPayload(): IssuesPayload {
   const marked = new Set(settings.current)
+  const watchedSet = new Set(settings.watched)
   const withCurrent = issues.map((i) => ({
     ...i,
-    current: marked.has(i.key) && !i.blocked && !i.done && i.statusCategory !== 'done'
+    current: marked.has(i.key) && !i.blocked && !i.done && i.statusCategory !== 'done',
+    watched: watchedSet.has(i.key)
   }))
   return {
     issues: withCurrent,
@@ -366,6 +369,14 @@ const api: JiraWidgetApi = {
     if (on) set.add(key)
     else set.delete(key)
     settings.current = [...set]
+    issueSubs.forEach((cb) => cb(currentPayload()))
+    return { ok: true }
+  },
+  setWatched: async (key: string, on: boolean) => {
+    const set = new Set(settings.watched)
+    if (on) set.add(key)
+    else set.delete(key)
+    settings.watched = [...set]
     issueSubs.forEach((cb) => cb(currentPayload()))
     return { ok: true }
   },

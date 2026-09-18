@@ -343,6 +343,7 @@ export function Panel({
   const [createSummary, setCreateSummary] = useState('')
   const [createDescription, setCreateDescription] = useState('')
   const [createAssignToMe, setCreateAssignToMe] = useState(true)
+  const [createWatch, setCreateWatch] = useState(false)
   const [createBusy, setCreateBusy] = useState(false)
   const [createMsg, setCreateMsg] = useState<{ ok: boolean; text: string } | null>(null)
   const [aiText, setAiText] = useState('')
@@ -706,6 +707,8 @@ export function Panel({
     })
     setCreateBusy(false)
     if (res.ok) {
+      // Local-only «Слежу» mark for the freshly created issue — never touches Jira.
+      if (createWatch && res.key) void window.api.setWatched(res.key, true)
       setCreateMsg({ ok: true, text: `Создано: ${res.key} ✓` })
       setCreateSummary('')
       setCreateDescription('')
@@ -772,6 +775,9 @@ export function Panel({
   const prioritized = issues.filter((i) => !i.done && !i.blocked && (i.localPriority ?? 0) > 0)
   const inbox = issues.filter((i) => !i.done && !i.blocked && (i.localPriority ?? 0) === 0)
   const localTasks = issues.filter((i) => i.isLocal && !i.done)
+  // «Слежу» shows everything the user is watching, including done/blocked — nothing drops out
+  // of the watch list on its own; the user removes it explicitly.
+  const watched = issues.filter((i) => i.watched)
 
   // Group active (not-done) issues by configured blocks, in order. Each issue lands in the
   // FIRST matching block (so overlapping status lists don't duplicate); the rest go to «Прочее».
@@ -846,7 +852,9 @@ export function Panel({
           ? localTasks
           : view === 'completed'
             ? completed
-            : inbox
+            : view === 'watched'
+              ? watched
+              : inbox
 
   const q = query.trim().toLowerCase()
   const filteredArchived = q
@@ -866,7 +874,9 @@ export function Panel({
             ? `Свои задачи (${localTasks.length})`
             : view === 'completed'
               ? `Завершённые (${completed.length})`
-              : view === 'history'
+              : view === 'watched'
+                ? `🔖 Слежу (${watched.length})`
+                : view === 'history'
                 ? 'История'
                 : view === 'dashboard'
                   ? 'Панель управления'
@@ -913,6 +923,12 @@ export function Panel({
                 onClick={() => go('completed')}
               >
                 Завершённые
+              </button>
+              <button
+                className={view === 'watched' ? 'is-active' : ''}
+                onClick={() => go('watched')}
+              >
+                🔖 Слежу
               </button>
               <button
                 className={view === 'history' ? 'is-active' : ''}
@@ -1638,6 +1654,14 @@ export function Panel({
                   onChange={(e) => setCreateAssignToMe(e.target.checked)}
                 />
                 Назначить на себя
+              </label>
+              <label className="checkbox-row" title="Добавит задачу в список «Слежу». На Jira не влияет.">
+                <input
+                  type="checkbox"
+                  checked={createWatch}
+                  onChange={(e) => setCreateWatch(e.target.checked)}
+                />
+                🔖 Следить за задачей — не забыть
               </label>
               <div className="row">
                 <button

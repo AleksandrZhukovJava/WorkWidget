@@ -88,6 +88,13 @@ export function IssueCard({
             {issue.current ? '◉' : '◎'}
           </button>
         )}
+        <button
+          className={`issue__watch ${issue.watched ? 'is-on' : ''}`}
+          title={issue.watched ? 'Убрать из «Слежу»' : 'Следить (добавить в «Слежу»)'}
+          onClick={() => void window.api.setWatched(issue.key, !issue.watched)}
+        >
+          🔖
+        </button>
         {!issue.isLocal && <span className="issue__status">{issue.status}</span>}
         {!issue.isLocal && issue.assignee && (
           <span className="issue__assignee" title="Исполнитель">

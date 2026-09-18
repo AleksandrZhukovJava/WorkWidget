@@ -19,6 +19,7 @@ import {
   setPriority,
   setBlocked,
   setCurrent,
+  setWatched,
   setChecklist,
   addLocalTask,
   updateLocalTask,
@@ -284,6 +285,12 @@ export function registerIpc(): void {
   ipcMain.handle(IPC.setCurrent, (_e, key: string, on: boolean) => {
     setCurrent(key, on)
     rebroadcast() // «current» flag is recomputed in getCachedIssues
+    return { ok: true }
+  })
+
+  ipcMain.handle(IPC.setWatched, (_e, key: string, on: boolean) => {
+    setWatched(key, on)
+    rebroadcast() // «watched» flag is recomputed in getCachedIssues
     return { ok: true }
   })
 

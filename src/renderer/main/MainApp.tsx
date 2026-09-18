@@ -28,7 +28,8 @@ const TASK_SUBVIEWS: { view: PanelView; label: string }[] = [
   { view: 'inbox', label: 'Без приоритета' },
   { view: 'blocked', label: 'Заблокированные' },
   { view: 'local', label: 'Свои' },
-  { view: 'completed', label: 'Завершённые' }
+  { view: 'completed', label: 'Завершённые' },
+  { view: 'watched', label: '🔖 Слежу' }
 ]
 // When status blocks are configured, «Приоритеты» becomes the grouped «По блокам» list and
 // the priority-based «Без приоритета» split is dropped (superseded by blocks).
@@ -36,7 +37,8 @@ const TASK_SUBVIEWS_BLOCKS: { view: PanelView; label: string }[] = [
   { view: 'prioritized', label: 'По блокам' },
   { view: 'blocked', label: 'Заблокированные' },
   { view: 'local', label: 'Свои' },
-  { view: 'completed', label: 'Завершённые' }
+  { view: 'completed', label: 'Завершённые' },
+  { view: 'watched', label: '🔖 Слежу' }
 ]
 const TASK_VIEWS = new Set<string>([...TASK_SUBVIEWS.map((s) => s.view), 'agent'])
 
@@ -57,6 +59,7 @@ const TITLES: Record<string, string> = {
   blocked: 'Задачи',
   local: 'Задачи',
   completed: 'Задачи',
+  watched: 'Задачи',
   create: 'Создать задачу',
   notifications: 'Уведомления',
   agent: 'Кодер-агент',

@@ -97,6 +97,7 @@ const store = new Store<AppSettings>({
     taskBlocks: [],
     countBlocked: false,
     current: [],
+    watched: [],
     createFieldDefaults: {},
     autostart: false
   }
@@ -188,6 +189,7 @@ export function getSettings(): AppSettings {
     taskBlocks: store.get('taskBlocks') ?? [],
     countBlocked: store.get('countBlocked') ?? false,
     current: store.get('current') ?? [],
+    watched: store.get('watched') ?? [],
     createFieldDefaults: store.get('createFieldDefaults') ?? {},
     autostart: store.get('autostart')
   }
@@ -228,6 +230,7 @@ export function deleteLocalTask(id: string): void {
   setPriority(id, 0)
   setBlocked(id, '')
   setChecklist(id, [])
+  setWatched(id, false)
 }
 
 // ---------------- completion overlay (local-only, never touches Jira) ----------------
@@ -285,6 +288,20 @@ export function setCurrent(key: string, on: boolean): AppSettings {
   if (on) set.add(key)
   else set.delete(key)
   store.set('current', [...set])
+  return getSettings()
+}
+
+// ---------------- «слежу» overlay (local-only, never touches Jira) ----------------
+export function getWatchedKeys(): string[] {
+  return store.get('watched') ?? []
+}
+
+/** Toggle a task's «слежу» mark. Unlike «current», it is NOT auto-cleared on done/blocked. */
+export function setWatched(key: string, on: boolean): AppSettings {
+  const set = new Set(store.get('watched') ?? [])
+  if (on) set.add(key)
+  else set.delete(key)
+  store.set('watched', [...set])
   return getSettings()
 }
 
