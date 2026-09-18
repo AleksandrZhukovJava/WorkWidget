@@ -11,7 +11,8 @@ import {
   getDoneItems,
   isArchived,
   getCurrentKeys,
-  setCurrentKeys
+  setCurrentKeys,
+  getWatchedKeys
 } from './store/settings'
 import { hasCompleteCredentials } from './store/credentials'
 import { vpnCached, refreshVpn } from './dashboard'
@@ -124,7 +125,13 @@ export function getCachedIssues(): Payload {
   })
   if (kept.length !== marked.length) setCurrentKeys(kept)
   const currentSet = new Set(kept)
-  const issues = built.map((i) => ({ ...i, current: currentSet.has(i.key) }))
+  // «Слежу» is a plain local set — never auto-pruned (a watched task stays until the user unmarks it).
+  const watchedSet = new Set(getWatchedKeys())
+  const issues = built.map((i) => ({
+    ...i,
+    current: currentSet.has(i.key),
+    watched: watchedSet.has(i.key)
+  }))
 
   return {
     issues,

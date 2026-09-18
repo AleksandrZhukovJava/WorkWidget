@@ -80,6 +80,7 @@ export type PanelView =
   | 'blocked'
   | 'local'
   | 'completed'
+  | 'watched'
   | 'history'
   | 'dashboard'
   | 'archive'
@@ -217,6 +218,8 @@ export interface AppSettings {
   countBlocked: boolean
   /** issue keys marked as «текущая» (green highlight); auto-pruned when blocked/done */
   current: string[]
+  /** issue keys/local ids the user is «watching» (Слежу); local-only, never auto-cleared */
+  watched: string[]
   /**
    * «Дополнительные поля» pinned as always-filled in the create form: field id → default
    * value (string, or string[] for multiselect). Key present = the field is shown by default
@@ -460,6 +463,8 @@ export interface JiraIssue {
   doneAt: string | null
   /** locally marked as the current task (green highlight); auto-cleared when blocked/done */
   current?: boolean
+  /** locally «watched» (Слежу) — added to the watch list; never auto-cleared */
+  watched?: boolean
   /** local, personal checklist for tracking progress; never synced to Jira/GitLab */
   checklist: ChecklistItem[]
 }
