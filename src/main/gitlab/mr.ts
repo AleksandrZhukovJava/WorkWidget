@@ -336,13 +336,20 @@ export async function listMyAuthoredMRs(): Promise<GitlabMR[]> {
   return list.map(mapMR)
 }
 
-/** Whether an MR has at least one approval. Best-effort — false on any error. */
+/**
+ * Whether an MR has at least one REAL approval. Best-effort — false on any error.
+ *
+ * NB: GitLab's `approved` field on /approvals means "the approval rules are satisfied", which
+ * is `true` the moment the MR is mergeable w.r.t. approvals — including when the project
+ * requires ZERO approvals, with nobody having approved. Trusting it made the «апрув MR → Ready
+ * for Test» automation fire immediately on such repos. We want an actual human approval, so we
+ * only count approvers present in `approved_by` and ignore the `approved` meta-flag.
+ */
 export async function isMrApproved(projectId: number, iid: number): Promise<boolean> {
   try {
-    const r = await glRequest<{ approved?: boolean; approved_by?: unknown[] }>(
+    const r = await glRequest<{ approved_by?: unknown[] }>(
       `/projects/${projectId}/merge_requests/${iid}/approvals`
     )
-    if (typeof r.approved === 'boolean') return r.approved
     return Array.isArray(r.approved_by) && r.approved_by.length > 0
   } catch {
     return false
