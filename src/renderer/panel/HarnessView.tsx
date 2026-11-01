@@ -20,6 +20,14 @@ function fmtInt(n: number): string {
   return Math.round(n).toLocaleString('ru-RU')
 }
 
+/** Elapsed duration from a start ISO timestamp to now: "45с" or "2:07". */
+function fmtElapsedFrom(startedAt: string): string {
+  const s = Math.max(0, Math.round((Date.now() - new Date(startedAt).getTime()) / 1000))
+  const m = Math.floor(s / 60)
+  const sec = s % 60
+  return m > 0 ? `${m}:${String(sec).padStart(2, '0')}` : `${sec}с`
+}
+
 /** USD cost with enough precision to be meaningful for a single review ($0.0123). */
 function fmtCost(usd: number): string {
   return usd >= 1 ? `$${usd.toFixed(2)}` : `$${usd.toFixed(4)}`
@@ -450,6 +458,17 @@ function RunTab(props: {
 }): JSX.Element {
   const p = props
   const canStart = p.selAgents.size > 0 && !p.running
+
+  // Re-render once a second while a run is in progress so the per-step elapsed timer ticks
+  // smoothly — the user always sees it's alive, even between engine log events.
+  const [, tick] = useState(0)
+  const runningNow = p.liveRun?.status === 'running'
+  useEffect(() => {
+    if (!runningNow) return
+    const id = setInterval(() => tick((n) => n + 1), 1000)
+    return () => clearInterval(id)
+  }, [runningNow])
+
   return (
     <>
       <div className="hv-source-tabs">
@@ -535,8 +554,12 @@ function RunTab(props: {
               <div className="hv-step__head">
                 <b>{step.agentName}</b>
                 <span className="hv-step__engine">{ENGINE_LABEL[step.engine]}</span>
-                {step.status === 'running' && p.logs[step.stepId] && (
-                  <span className="hint">{p.logs[step.stepId]}</span>
+                {step.status === 'running' && (
+                  <span className="hv-step__live">
+                    <span className="spinner" />
+                    <span className="hv-step__elapsed">{fmtElapsedFrom(step.startedAt)}</span>
+                    {p.logs[step.stepId] && <span className="hint">{p.logs[step.stepId]}</span>}
+                  </span>
                 )}
               </div>
               <Findings step={step} />
