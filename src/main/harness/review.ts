@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { getMrDiff } from '../gitlab/mr'
 import { runGit } from '../agent/git'
 import { getAgentById, enabledProhibitionTexts, upsertRun } from './store'
-import { engineByName, resolveEngine } from './engine'
+import { engineByName, resolveEngine, executeReview } from './engine'
 import type {
   HarnessRun,
   HarnessRunEvent,
@@ -115,7 +115,7 @@ export async function runReview(
         const engineName = await resolveEngine(agent.engine)
         step.engine = engineName
         const engine = engineByName(engineName)
-        const result = await engine.review({
+        const result = await executeReview(engine, {
           agent,
           prohibitions,
           diff,

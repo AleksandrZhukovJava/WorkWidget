@@ -28,6 +28,25 @@ const ENGINE_LABEL: Record<HarnessEngine, string> = {
   local: 'Локальная'
 }
 
+/** Render text preserving line breaks and simple **bold** — so a prose summary is readable. */
+function RichText({ text }: { text: string }): JSX.Element {
+  return (
+    <div className="hv-rich">
+      {text.split('\n').map((line, i) => (
+        <div className="hv-rich__line" key={i}>
+          {line.split(/(\*\*[^*]+\*\*)/g).map((seg, j) =>
+            seg.startsWith('**') && seg.endsWith('**') ? (
+              <b key={j}>{seg.slice(2, -2)}</b>
+            ) : (
+              <span key={j}>{seg}</span>
+            )
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function Findings({ step }: { step: HarnessStepResult }): JSX.Element {
   if (step.status === 'error') return <div className="status-msg err">{step.error}</div>
   if (step.status === 'running') {
@@ -39,9 +58,13 @@ function Findings({ step }: { step: HarnessStepResult }): JSX.Element {
   }
   return (
     <>
-      {step.summary && <div className="hv-summary">{step.summary}</div>}
+      {step.summary && (
+        <div className="hv-summary">
+          <RichText text={step.summary} />
+        </div>
+      )}
       {step.findings.length === 0 ? (
-        <div className="hint">замечаний нет</div>
+        !step.summary && <div className="hint">замечаний нет</div>
       ) : (
         step.findings.map((f, i) => (
           <div className={`hv-finding hv-sev-${f.severity}`} key={i}>

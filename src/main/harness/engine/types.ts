@@ -22,7 +22,11 @@ export interface ReviewResult {
   findings: ReviewFinding[]
 }
 
-/** A pluggable backend. The orchestrator and UI never know which engine runs inside. */
+/**
+ * A pluggable backend reduced to one primitive: a single completion. The review logic
+ * (prompt building, parsing, repair pass) lives in executeReview() on top of this, so both
+ * engines share it and the orchestrator/UI never know which engine runs inside.
+ */
 export interface ReviewEngine {
-  review(req: ReviewRequest): Promise<ReviewResult>
+  chat(system: string, user: string, req: ReviewRequest): Promise<string>
 }

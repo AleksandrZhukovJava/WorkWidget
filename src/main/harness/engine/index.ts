@@ -6,6 +6,7 @@ import type { EngineStatus, HarnessEngine } from '@shared/types'
 import type { ReviewEngine } from './types'
 
 export type { ReviewEngine, ReviewRequest, ReviewResult } from './types'
+export { executeReview } from './execute'
 
 let cachedStatus: EngineStatus | null = null
 

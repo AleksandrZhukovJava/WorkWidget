@@ -456,20 +456,31 @@ function simulateRun(source: HarnessSource, agentIds: string[]): void {
     setTimeout(() => emitHarness({ runId, kind: 'log', stepId: step.stepId, text: 'анализирую дифф…' }), 300)
     setTimeout(
       () => {
-        const findings: ReviewFinding[] =
-          i === 0
-            ? [
-                { severity: 'major', title: 'Необработанный краевой случай', detail: 'При пустом списке код упадёт с исключением.', file: 'src/service.ts', line: 42, suggestion: 'Добавить проверку на пустоту до обращения к [0].' },
-                { severity: 'minor', title: 'Потенциальная гонка', detail: 'Счётчик обновляется без синхронизации.', file: 'src/service.ts', line: 71 }
-              ]
-            : [
-                { severity: 'nit', title: 'Непонятное имя', detail: 'tmp2 — лучше описательное имя.', file: 'src/service.ts', line: 50 },
-                { severity: 'praise', title: 'Хороший тест', detail: 'Добавлен тест на регрессию — отлично.', file: 'src/service.test.ts' }
-              ]
+        // Reviewer 1: structured findings (+ summary with **bold**). Reviewer 2: prose-only
+        // fallback (multiline + bold, no findings) — reproduces a model that ignored the JSON
+        // contract, to verify the readable rendering.
+        const isFirst = i === 0
+        const findings: ReviewFinding[] = isFirst
+          ? [
+              { severity: 'major', title: 'Необработанный краевой случай', detail: 'При пустом списке код упадёт с исключением.', file: 'src/service.ts', line: 42, suggestion: 'Добавить проверку на пустоту до обращения к [0].' },
+              { severity: 'minor', title: 'Потенциальная гонка', detail: 'Счётчик обновляется без синхронизации.', file: 'src/service.ts', line: 71 }
+            ]
+          : []
+        const summary = isFirst
+          ? 'Итог: пара замечаний, **критичных нет**.'
+          : [
+              'Изменения минимальные — замена хардкод IP на Kubernetes-internal DNS во всех трёх окружениях.',
+              '',
+              '**Замечания:**',
+              '1. Все три окружения указывают на одно имя — возможно, намеренно?',
+              '2. Cluster-local DNS работает только внутри кластера.',
+              '',
+              '**Вопрос перед аппрувом:** это один ClickHouse-инстанс на все окружения?'
+            ].join('\n')
         const done: HarnessStepResult = {
           ...step,
           status: 'done',
-          summary: 'Итог: несколько замечаний, критичных нет.',
+          summary,
           findings,
           finishedAt: new Date().toISOString()
         }
