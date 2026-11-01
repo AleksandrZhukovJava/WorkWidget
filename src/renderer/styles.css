@@ -1048,6 +1048,70 @@ body {
   margin-top: 2px;
   opacity: 0.85;
 }
+/* --- token usage tracking --- */
+.hv-usage {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  align-items: center;
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--border, rgba(255, 255, 255, 0.12));
+  font-size: 11px;
+}
+.hv-usage__chip {
+  padding: 1px 6px;
+  border-radius: 8px;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.14));
+  opacity: 0.85;
+  white-space: nowrap;
+}
+.hv-usage__total {
+  padding: 1px 7px;
+  border-radius: 8px;
+  font-weight: 700;
+  background: var(--accent-soft, rgba(120, 160, 255, 0.16));
+  border: 1px solid var(--accent, rgba(120, 160, 255, 0.5));
+  white-space: nowrap;
+}
+.hv-usage__cost {
+  padding: 1px 7px;
+  border-radius: 8px;
+  font-weight: 700;
+  background: rgba(76, 175, 80, 0.16);
+  border: 1px solid var(--ok, #4caf50);
+  white-space: nowrap;
+}
+.hv-usage--big {
+  font-size: 12px;
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+.hv-usage--big .hv-usage__total {
+  font-size: 13px;
+}
+.hv-run__usage {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  margin-bottom: 8px;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+  border-radius: 8px;
+  background: var(--panel-2, rgba(255, 255, 255, 0.03));
+}
+.hv-run__usage-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.6;
+}
+.hv-usage__inline {
+  font-weight: 600;
+  opacity: 0.95;
+}
+
 .hv-sev-critical {
   border-left-color: var(--breach, #e05260);
 }

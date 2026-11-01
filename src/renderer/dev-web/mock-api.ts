@@ -477,11 +477,32 @@ function simulateRun(source: HarnessSource, agentIds: string[]): void {
               '',
               '**Вопрос перед аппрувом:** это один ClickHouse-инстанс на все окружения?'
             ].join('\n')
+        // Reviewer 1 simulates the Claude engine (reports cost + prompt cache); reviewer 2 the
+        // local engine (tokens only, no cost, +1 call for the repair pass it needed).
+        const usage: HarnessStepResult['usage'] = isFirst
+          ? {
+              inputTokens: 18432,
+              outputTokens: 742,
+              cacheReadTokens: 15360,
+              cacheCreationTokens: 3072,
+              totalTokens: 19174,
+              costUsd: 0.0371,
+              calls: 1
+            }
+          : {
+              inputTokens: 9120,
+              outputTokens: 1860,
+              cacheReadTokens: 0,
+              cacheCreationTokens: 0,
+              totalTokens: 10980,
+              calls: 2
+            }
         const done: HarnessStepResult = {
           ...step,
           status: 'done',
           summary,
           findings,
+          usage,
           finishedAt: new Date().toISOString()
         }
         const idx = run.steps.findIndex((s) => s.stepId === step.stepId)

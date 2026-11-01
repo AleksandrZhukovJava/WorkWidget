@@ -5,7 +5,7 @@ import { homedir } from 'node:os'
 import { getSettings } from '../store/settings'
 import { getLlmApiKey, getCoderApiKey } from '../store/credentials'
 import { parseLlmTaskOutput, stripNoise } from './parse'
-import type { LlmGenerateResult } from '@shared/types'
+import type { LlmGenerateResult, TokenUsage } from '@shared/types'
 
 // Generous: a local model may need to load into VRAM on the first call.
 const LLM_TIMEOUT_MS = 90_000
@@ -20,7 +20,14 @@ class LlmConnectionError extends Error {}
 
 interface ChatCompletionResponse {
   choices?: { message?: { content?: string } }[]
+  usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number }
   error?: { message?: string }
+}
+
+/** A completion plus the server's token usage, when it reports any. */
+export interface ChatResult {
+  content: string
+  usage?: TokenUsage
 }
 
 /** A resolved endpoint: base URL, chosen model id (may be blank = auto), and optional key. */
@@ -150,7 +157,7 @@ async function chatCompletion(
   p: LlmProfile,
   timeoutMs = LLM_TIMEOUT_MS,
   isRetry = false
-): Promise<string> {
+): Promise<ChatResult> {
   let res: Response
   try {
     const model = await resolveModel(p)
@@ -183,13 +190,37 @@ async function chatCompletion(
   }
   const content = data.choices?.[0]?.message?.content
   if (!content) throw new Error('LLM вернула пустой ответ')
-  return content
+  return { content, usage: toTokenUsage(data.usage) }
 }
 
-/** Public helper for the coder agent: one chat call against the coder profile. */
+/** Map an OpenAI-style `usage` block to our TokenUsage; undefined when the server omits it. */
+function toTokenUsage(
+  u: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } | undefined
+): TokenUsage | undefined {
+  if (!u) return undefined
+  const input = u.prompt_tokens ?? 0
+  const output = u.completion_tokens ?? 0
+  return {
+    inputTokens: input,
+    outputTokens: output,
+    cacheReadTokens: 0,
+    cacheCreationTokens: 0,
+    totalTokens: u.total_tokens ?? input + output,
+    calls: 1
+  }
+}
+
+/** Public helper for the coder agent: one chat call against the coder profile (text only). */
 export async function coderChat(
   messages: { role: string; content: string }[]
 ): Promise<string> {
+  return (await chatCompletion(messages, coderProfile(), CODER_TIMEOUT_MS)).content
+}
+
+/** Like coderChat, but also returns the local model's token usage (for the harness tracker). */
+export async function coderChatWithUsage(
+  messages: { role: string; content: string }[]
+): Promise<ChatResult> {
   return chatCompletion(messages, coderProfile(), CODER_TIMEOUT_MS)
 }
 
@@ -197,7 +228,7 @@ export async function coderChat(
 export async function testCoder(): Promise<{ ok: boolean; error?: string }> {
   try {
     await chatCompletion([{ role: 'user', content: 'ping' }], coderProfile(), MODELS_TIMEOUT_MS)
-    return { ok: true }
+    return { ok: true } // we only need it to succeed; the text/usage is irrelevant here
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : String(err) }
   }
@@ -221,7 +252,7 @@ export async function generateTaskDescription(userText: string): Promise<LlmGene
   ].join('\n\n')
 
   try {
-    const raw = await chatCompletion(
+    const { content: raw } = await chatCompletion(
       [
         { role: 'system', content: system },
         { role: 'user', content: userText }
@@ -275,7 +306,7 @@ export async function refineTaskDescription(
   ].join('\n\n')
 
   try {
-    const raw = await chatCompletion(
+    const { content: raw } = await chatCompletion(
       [
         { role: 'system', content: system },
         { role: 'user', content: userMsg }

@@ -9,10 +9,85 @@ import type {
   HarnessSource,
   HarnessStepResult,
   Prohibition,
-  ReviewFinding
+  ReviewFinding,
+  TokenUsage
 } from '@shared/types'
 
 type Sub = 'run' | 'agents' | 'prohibitions' | 'history'
+
+/** Thousands-separated integer (ru: thin non-breaking space), e.g. 12 345. */
+function fmtInt(n: number): string {
+  return Math.round(n).toLocaleString('ru-RU')
+}
+
+/** USD cost with enough precision to be meaningful for a single review ($0.0123). */
+function fmtCost(usd: number): string {
+  return usd >= 1 ? `$${usd.toFixed(2)}` : `$${usd.toFixed(4)}`
+}
+
+/** Sum step usages into one total; null when no step reported anything. */
+function sumUsage(steps: HarnessStepResult[]): TokenUsage | null {
+  let acc: TokenUsage | null = null
+  for (const s of steps) {
+    const u = s.usage
+    if (!u) continue
+    if (!acc) {
+      acc = { ...u }
+      continue
+    }
+    acc = {
+      inputTokens: acc.inputTokens + u.inputTokens,
+      outputTokens: acc.outputTokens + u.outputTokens,
+      cacheReadTokens: acc.cacheReadTokens + u.cacheReadTokens,
+      cacheCreationTokens: acc.cacheCreationTokens + u.cacheCreationTokens,
+      totalTokens: acc.totalTokens + u.totalTokens,
+      costUsd:
+        acc.costUsd === undefined && u.costUsd === undefined
+          ? undefined
+          : (acc.costUsd ?? 0) + (u.costUsd ?? 0),
+      calls: acc.calls + u.calls
+    }
+  }
+  return acc
+}
+
+/**
+ * Explicit token accounting as a row of labelled chips. `big` is the emphasized run-total
+ * variant shown above a run; the compact variant sits under each step.
+ */
+function UsageBadges({ usage, big }: { usage: TokenUsage; big?: boolean }): JSX.Element {
+  return (
+    <div className={`hv-usage${big ? ' hv-usage--big' : ''}`}>
+      <span className="hv-usage__total" title="Всего токенов (вход + выход)">
+        Σ {fmtInt(usage.totalTokens)} ток.
+      </span>
+      <span className="hv-usage__chip" title="Токенов на входе (промпт + дифф + контекст)">
+        ↓ вход {fmtInt(usage.inputTokens)}
+      </span>
+      <span className="hv-usage__chip" title="Токенов на выходе (ответ модели)">
+        ↑ выход {fmtInt(usage.outputTokens)}
+      </span>
+      {usage.cacheReadTokens > 0 && (
+        <span className="hv-usage__chip" title="Токенов прочитано из кэша промпта (не тарифицируются как новые)">
+          ⚡ кэш {fmtInt(usage.cacheReadTokens)}
+        </span>
+      )}
+      {usage.cacheCreationTokens > 0 && (
+        <span className="hv-usage__chip" title="Токенов записано в кэш промпта">
+          ✎ кэш+ {fmtInt(usage.cacheCreationTokens)}
+        </span>
+      )}
+      {usage.costUsd !== undefined && (
+        <span className="hv-usage__cost" title="Стоимость по данным Claude CLI">
+          {fmtCost(usage.costUsd)}
+        </span>
+      )}
+      <span className="hv-usage__chip" title="Сколько обращений к модели (ревью + переформатирование)">
+        {usage.calls} вызов(ов)
+      </span>
+    </div>
+  )
+}
 
 const SEV_LABEL: Record<ReviewFinding['severity'], string> = {
   critical: '🔴',
@@ -83,6 +158,7 @@ function Findings({ step }: { step: HarnessStepResult }): JSX.Element {
           </div>
         ))
       )}
+      {step.usage && <UsageBadges usage={step.usage} />}
     </>
   )
 }
@@ -445,6 +521,15 @@ function RunTab(props: {
 
       {p.liveRun && (
         <div className="hv-run">
+          {(() => {
+            const total = sumUsage(p.liveRun.steps)
+            return total ? (
+              <div className="hv-run__usage">
+                <span className="hv-run__usage-label">Токены за запуск</span>
+                <UsageBadges usage={total} big />
+              </div>
+            ) : null
+          })()}
           {p.liveRun.steps.map((step) => (
             <div className="hv-step" key={step.stepId}>
               <div className="hv-step__head">
@@ -672,6 +757,15 @@ function HistoryTab({ runs }: { runs: HarnessRun[] }): JSX.Element {
           </button>
           <span className="hint">{open.source.label}</span>
         </div>
+        {(() => {
+          const total = sumUsage(open.steps)
+          return total ? (
+            <div className="hv-run__usage">
+              <span className="hv-run__usage-label">Токены за запуск</span>
+              <UsageBadges usage={total} big />
+            </div>
+          ) : null
+        })()}
         {open.steps.map((step) => (
           <div className="hv-step" key={step.stepId}>
             <div className="hv-step__head">
@@ -691,6 +785,7 @@ function HistoryTab({ runs }: { runs: HarnessRun[] }): JSX.Element {
     <>
       {runs.map((r) => {
         const total = r.steps.reduce((n, s) => n + s.findings.length, 0)
+        const usage = sumUsage(r.steps)
         return (
           <div className="hv-card" key={r.id} onClick={() => setOpenId(r.id)} style={{ cursor: 'pointer' }}>
             <div className="hv-card__head">
@@ -699,6 +794,15 @@ function HistoryTab({ runs }: { runs: HarnessRun[] }): JSX.Element {
             </div>
             <div className="hint">
               {new Date(r.startedAt).toLocaleString('ru-RU')} · {r.steps.length} ревьювер(ов) · {total} замечаний
+              {usage && (
+                <>
+                  {' · '}
+                  <span className="hv-usage__inline" title="Всего токенов за запуск">
+                    Σ {fmtInt(usage.totalTokens)} ток.
+                  </span>
+                  {usage.costUsd !== undefined && <> · {fmtCost(usage.costUsd)}</>}
+                </>
+              )}
             </div>
           </div>
         )

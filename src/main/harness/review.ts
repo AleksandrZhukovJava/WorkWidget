@@ -126,6 +126,7 @@ export async function runReview(
         })
         step.summary = result.summary
         step.findings = result.findings
+        step.usage = result.usage
         step.status = controller.signal.aborted ? 'cancelled' : 'done'
       } catch (err) {
         step.status = controller.signal.aborted ? 'cancelled' : 'error'

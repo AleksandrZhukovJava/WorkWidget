@@ -651,6 +651,23 @@ export interface Prohibition {
   builtin: boolean
 }
 
+/**
+ * Token accounting for a single step/run. Counts are raw tokens; `costUsd` is filled only by
+ * engines that report a price (the Claude CLI does). `cacheReadTokens`/`cacheCreationTokens`
+ * are Claude's prompt-cache figures (0 for the local engine). `totalTokens` is the billable
+ * new tokens = input + output (cache reads are counted separately, not in the total). `calls`
+ * is how many model round-trips contributed (a review is 1, +1 if the repair pass ran).
+ */
+export interface TokenUsage {
+  inputTokens: number
+  outputTokens: number
+  cacheReadTokens: number
+  cacheCreationTokens: number
+  totalTokens: number
+  costUsd?: number
+  calls: number
+}
+
 export type FindingSeverity = 'critical' | 'major' | 'minor' | 'nit' | 'praise'
 
 /** One review finding from an agent. */
@@ -693,6 +710,8 @@ export interface HarnessStepResult {
   findings: ReviewFinding[]
   /** the agent's overall summary text */
   summary: string
+  /** tokens (and, for Claude, cost) this step consumed; absent if the engine reported nothing */
+  usage?: TokenUsage
   error?: string
   startedAt: string
   finishedAt?: string
