@@ -102,6 +102,9 @@ export const IPC = {
 
   // coder agent harness
   harnessEngineStatus: 'harness:engineStatus',
+  harnessClaudeConfig: 'harness:claudeConfig',
+  harnessSetClaudeKey: 'harness:setClaudeKey',
+  harnessSetCliPath: 'harness:setCliPath',
   harnessListAgents: 'harness:listAgents',
   harnessSaveAgent: 'harness:saveAgent',
   harnessDeleteAgent: 'harness:deleteAgent',

@@ -10,6 +10,7 @@ const ACC_OAUTH_REFRESH = 'oauthRefresh'
 const ACC_SERVER_PAT = 'serverPat'
 const ACC_LLM_KEY = 'llmApiKey'
 const ACC_CODER_KEY = 'coderApiKey'
+const ACC_ANTHROPIC_KEY = 'anthropicApiKey'
 const ACC_GITLAB_PAT = 'gitlabPat'
 
 const KEYRING_SERVICE = 'JiraWidget'
@@ -362,6 +363,20 @@ export function setCoderApiKey(key: string): void {
 
 export function getCoderApiKey(): string | null {
   return readSecretKey(ACC_CODER_KEY)
+}
+
+/**
+ * Anthropic API key for the Claude harness engine. When set, it's injected as ANTHROPIC_API_KEY
+ * into the spawned `claude` CLI — the plan-B auth path when the logged-in subscription session
+ * isn't usable for programmatic `-p` runs. Empty clears it (falls back to the CLI's own login).
+ */
+export function setAnthropicApiKey(key: string): void {
+  if (key.trim()) setSecret(ACC_ANTHROPIC_KEY, key.trim())
+  else deleteSecretKey(ACC_ANTHROPIC_KEY)
+}
+
+export function getAnthropicApiKey(): string | null {
+  return readSecretKey(ACC_ANTHROPIC_KEY)
 }
 
 // ---------------- current-user identity (for "assign to me") ----------------

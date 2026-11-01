@@ -257,6 +257,12 @@ const api = {
 
   // coder agent harness
   harnessEngineStatus: (): Promise<EngineStatus> => ipcRenderer.invoke(IPC.harnessEngineStatus),
+  harnessClaudeConfig: (): Promise<{ hasKey: boolean; cliPath: string }> =>
+    ipcRenderer.invoke(IPC.harnessClaudeConfig),
+  harnessSetClaudeKey: (key: string): Promise<ActionResult> =>
+    ipcRenderer.invoke(IPC.harnessSetClaudeKey, key),
+  harnessSetCliPath: (path: string): Promise<ActionResult> =>
+    ipcRenderer.invoke(IPC.harnessSetCliPath, path),
   harnessListAgents: (): Promise<HarnessAgent[]> => ipcRenderer.invoke(IPC.harnessListAgents),
   harnessSaveAgent: (agent: HarnessAgent): Promise<HarnessAgent[]> =>
     ipcRenderer.invoke(IPC.harnessSaveAgent, agent),

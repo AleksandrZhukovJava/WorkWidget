@@ -1,4 +1,5 @@
 import { getSettings } from '../../store/settings'
+import { getAnthropicApiKey } from '../../store/credentials'
 import { claudeEngine } from './claude-engine'
 import { localEngine } from './local-engine'
 import { claudeVersion, claudeLoggedIn } from './claude-cli'
@@ -16,8 +17,10 @@ export async function engineStatus(force = false): Promise<EngineStatus> {
   const version = await claudeVersion()
   const baseUrl = getSettings().coder.baseUrl.trim()
   const reachable = await localReachable(baseUrl)
+  // An API key makes Claude usable regardless of the CLI's own login session.
+  const hasKey = getAnthropicApiKey() !== null
   cachedStatus = {
-    claude: { cliFound: version !== '', loggedIn: version !== '' && claudeLoggedIn(), version },
+    claude: { cliFound: version !== '', loggedIn: version !== '' && (hasKey || claudeLoggedIn()), version },
     local: { reachable, baseUrl }
   }
   return cachedStatus

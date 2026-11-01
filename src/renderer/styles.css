@@ -938,6 +938,30 @@ body {
 .hv-engine.is-off {
   opacity: 0.5;
 }
+.hv-cfg-toggle {
+  margin-left: auto;
+  background: transparent;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+  color: inherit;
+  border-radius: 10px;
+  font-size: 11px;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+.hv-cfg {
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+  border-radius: 8px;
+  padding: 8px;
+  margin-bottom: 8px;
+}
+.hv-cfg .field {
+  margin-bottom: 8px;
+}
+.hv-cfg code {
+  background: rgba(255, 255, 255, 0.08);
+  padding: 0 4px;
+  border-radius: 3px;
+}
 .hv-subnav,
 .hv-source-tabs {
   display: flex;

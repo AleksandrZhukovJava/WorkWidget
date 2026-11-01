@@ -894,6 +894,9 @@ TimeoutException: payment gateway did not respond
     claude: { cliFound: true, loggedIn: true, version: '1.0.0 (mock)' },
     local: { reachable: true, baseUrl: 'http://localhost:1234/v1' }
   }),
+  harnessClaudeConfig: async () => ({ hasKey: false, cliPath: '' }),
+  harnessSetClaudeKey: async () => ({ ok: true }),
+  harnessSetCliPath: async () => ({ ok: true }),
   harnessListAgents: async () => harnessAgents,
   harnessSaveAgent: async (agent: HarnessAgent) => {
     const idx = harnessAgents.findIndex((a) => a.id === agent.id)
