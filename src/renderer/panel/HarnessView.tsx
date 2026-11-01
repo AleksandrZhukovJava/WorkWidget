@@ -9,9 +9,9 @@ import type {
   HarnessSource,
   HarnessStepResult,
   Prohibition,
-  ReviewFinding,
   TokenUsage
 } from '@shared/types'
+import { DiffView, ENGINE_LABEL, RichText, SEV_LABEL, type InlineFinding } from './DiffView'
 
 type Sub = 'run' | 'agents' | 'prohibitions' | 'history'
 
@@ -97,76 +97,29 @@ function UsageBadges({ usage, big }: { usage: TokenUsage; big?: boolean }): JSX.
   )
 }
 
-const SEV_LABEL: Record<ReviewFinding['severity'], string> = {
-  critical: '🔴',
-  major: '🟠',
-  minor: '🟡',
-  nit: '⚪',
-  praise: '🟢'
-}
-
-const ENGINE_LABEL: Record<HarnessEngine, string> = {
-  default: 'Авто',
-  claude: 'Claude',
-  local: 'Локальная'
-}
-
-/** Render text preserving line breaks and simple **bold** — so a prose summary is readable. */
-function RichText({ text }: { text: string }): JSX.Element {
-  return (
-    <div className="hv-rich">
-      {text.split('\n').map((line, i) => (
-        <div className="hv-rich__line" key={i}>
-          {line.split(/(\*\*[^*]+\*\*)/g).map((seg, j) =>
-            seg.startsWith('**') && seg.endsWith('**') ? (
-              <b key={j}>{seg.slice(2, -2)}</b>
-            ) : (
-              <span key={j}>{seg}</span>
-            )
-          )}
-        </div>
-      ))}
-    </div>
-  )
-}
-
-function Findings({ step }: { step: HarnessStepResult }): JSX.Element {
-  if (step.status === 'error') return <div className="status-msg err">{step.error}</div>
-  if (step.status === 'running') {
-    return (
-      <div className="hint">
-        <span className="spinner" /> выполняется…
-      </div>
-    )
-  }
+/** Flat list of one reviewer's findings (used by the «Списком» view; GitLab view renders inline). */
+function StepFindings({ step }: { step: HarnessStepResult }): JSX.Element | null {
+  if (step.findings.length === 0) return null
   return (
     <>
-      {step.summary && (
-        <div className="hv-summary">
-          <RichText text={step.summary} />
-        </div>
-      )}
-      {step.findings.length === 0 ? (
-        !step.summary && <div className="hint">замечаний нет</div>
-      ) : (
-        step.findings.map((f, i) => (
-          <div className={`hv-finding hv-sev-${f.severity}`} key={i}>
-            <div className="hv-finding__head">
-              <span className="hv-finding__sev">{SEV_LABEL[f.severity]}</span>
-              <b>{f.title}</b>
-              {f.file && (
-                <span className="hv-finding__loc">
-                  {f.file}
-                  {f.line ? `:${f.line}` : ''}
-                </span>
-              )}
-            </div>
-            <div className="hv-finding__detail">{f.detail}</div>
-            {f.suggestion && <div className="hv-finding__sug">💡 {f.suggestion}</div>}
+      {step.findings.map((f, i) => (
+        <div className={`hv-finding hv-sev-${f.severity}`} key={i}>
+          <div className="hv-finding__head">
+            <span className="hv-finding__sev">{SEV_LABEL[f.severity]}</span>
+            <b>{f.title}</b>
+            {f.file && (
+              <span className="hv-finding__loc">
+                {f.file}
+                {f.line ? `:${f.line}` : ''}
+              </span>
+            )}
           </div>
-        ))
-      )}
-      {step.usage && <UsageBadges usage={step.usage} />}
+          <div className="hv-finding__detail">
+            <RichText text={f.detail} />
+          </div>
+          {f.suggestion && <div className="hv-finding__sug">💡 {f.suggestion}</div>}
+        </div>
+      ))}
     </>
   )
 }
@@ -206,6 +159,8 @@ export function HarnessView({ gitlabEnabled }: { gitlabEnabled: boolean }): JSX.
         setLiveRun(ev.run)
         setLogs({})
         setPostMsg(null)
+      } else if (ev.kind === 'diff') {
+        setLiveRun((prev) => (prev ? { ...prev, diff: ev.diff } : prev))
       } else if (ev.kind === 'log') {
         setLogs((prev) => ({ ...prev, [ev.stepId]: ev.text }))
       } else if (ev.kind === 'step-done') {
@@ -459,16 +414,6 @@ function RunTab(props: {
   const p = props
   const canStart = p.selAgents.size > 0 && !p.running
 
-  // Re-render once a second while a run is in progress so the per-step elapsed timer ticks
-  // smoothly — the user always sees it's alive, even between engine log events.
-  const [, tick] = useState(0)
-  const runningNow = p.liveRun?.status === 'running'
-  useEffect(() => {
-    if (!runningNow) return
-    const id = setInterval(() => tick((n) => n + 1), 1000)
-    return () => clearInterval(id)
-  }, [runningNow])
-
   return (
     <>
       <div className="hv-source-tabs">
@@ -539,32 +484,8 @@ function RunTab(props: {
       </div>
 
       {p.liveRun && (
-        <div className="hv-run">
-          {(() => {
-            const total = sumUsage(p.liveRun.steps)
-            return total ? (
-              <div className="hv-run__usage">
-                <span className="hv-run__usage-label">Токены за запуск</span>
-                <UsageBadges usage={total} big />
-              </div>
-            ) : null
-          })()}
-          {p.liveRun.steps.map((step) => (
-            <div className="hv-step" key={step.stepId}>
-              <div className="hv-step__head">
-                <b>{step.agentName}</b>
-                <span className="hv-step__engine">{ENGINE_LABEL[step.engine]}</span>
-                {step.status === 'running' && (
-                  <span className="hv-step__live">
-                    <span className="spinner" />
-                    <span className="hv-step__elapsed">{fmtElapsedFrom(step.startedAt)}</span>
-                    {p.logs[step.stepId] && <span className="hint">{p.logs[step.stepId]}</span>}
-                  </span>
-                )}
-              </div>
-              <Findings step={step} />
-            </div>
-          ))}
+        <>
+          <RunResults run={p.liveRun} logs={p.logs} />
           {p.liveRun.status !== 'running' &&
             p.liveRun.source.kind === 'mr' &&
             p.liveRun.steps.some((s) => s.status === 'done') && (
@@ -575,9 +496,96 @@ function RunTab(props: {
                 {p.postMsg && <span className="hint">{p.postMsg}</span>}
               </div>
             )}
-        </div>
+        </>
       )}
     </>
+  )
+}
+
+// ---------------- Shared run results (GitLab-style diff / list) ----------------
+/** Collect every finding across the run's steps, tagged with its reviewer + engine. */
+function collectFindings(run: HarnessRun): InlineFinding[] {
+  return run.steps.flatMap((s) =>
+    s.findings.map((f) => ({ ...f, reviewer: s.agentName, engine: s.engine }))
+  )
+}
+
+/**
+ * The results of a run, shared by the live Запуск view and the История detail. Shows the run-total
+ * token banner, a per-reviewer header (status/summary/usage, live elapsed while running), and the
+ * findings either GitLab-style — the reviewed code with inline comments on the lines — or as a flat
+ * list. Defaults to the GitLab view whenever the diff is available.
+ */
+function RunResults({ run, logs }: { run: HarnessRun; logs?: Record<string, string> }): JSX.Element {
+  const [view, setView] = useState<'gitlab' | 'list'>('gitlab')
+
+  // Re-render each second while the run is in progress so the per-step elapsed timers tick.
+  const [, tick] = useState(0)
+  const runningNow = run.status === 'running'
+  useEffect(() => {
+    if (!runningNow) return
+    const id = setInterval(() => tick((n) => n + 1), 1000)
+    return () => clearInterval(id)
+  }, [runningNow])
+
+  const total = sumUsage(run.steps)
+  const findings = collectFindings(run)
+  const hasDiff = Boolean(run.diff && run.diff.trim())
+  const showGitlab = view === 'gitlab' && hasDiff
+
+  return (
+    <div className="hv-run">
+      {total && (
+        <div className="hv-run__usage">
+          <span className="hv-run__usage-label">Токены за запуск</span>
+          <UsageBadges usage={total} big />
+        </div>
+      )}
+
+      {/* per-reviewer status + summary + usage (the "who said what" header) */}
+      {run.steps.map((step) => (
+        <div className="hv-step" key={step.stepId}>
+          <div className="hv-step__head">
+            <b>{step.agentName}</b>
+            <span className="hv-step__engine">{ENGINE_LABEL[step.engine]}</span>
+            {step.status === 'done' && (
+              <span className="hv-step__count">
+                {step.findings.length ? `${step.findings.length} замеч.` : 'без замечаний'}
+              </span>
+            )}
+            {step.status === 'running' && (
+              <span className="hv-step__live">
+                <span className="spinner" />
+                <span className="hv-step__elapsed">{fmtElapsedFrom(step.startedAt)}</span>
+                {logs?.[step.stepId] && <span className="hint">{logs[step.stepId]}</span>}
+              </span>
+            )}
+          </div>
+          {step.status === 'error' && <div className="status-msg err">{step.error}</div>}
+          {step.summary && (
+            <div className="hv-summary">
+              <RichText text={step.summary} />
+            </div>
+          )}
+          {/* in list view, show this reviewer's findings here; in gitlab view they go inline below */}
+          {!showGitlab && step.status === 'done' && <StepFindings step={step} />}
+          {step.usage && <UsageBadges usage={step.usage} />}
+        </div>
+      ))}
+
+      {hasDiff && (
+        <div className="hv-viewtabs">
+          <button className={showGitlab ? 'is-active' : ''} onClick={() => setView('gitlab')}>
+            Как в GitLab
+          </button>
+          <button className={!showGitlab ? 'is-active' : ''} onClick={() => setView('list')}>
+            Списком
+          </button>
+        </div>
+      )}
+
+      {showGitlab && <DiffView diff={run.diff as string} findings={findings} />}
+    </div>
   )
 }
 
@@ -773,32 +781,15 @@ function HistoryTab({ runs }: { runs: HarnessRun[] }): JSX.Element {
 
   if (open) {
     return (
-      <div className="hv-run">
+      <>
         <div className="row">
           <button className="btn" onClick={() => setOpenId(null)}>
             ← Назад
           </button>
           <span className="hint">{open.source.label}</span>
         </div>
-        {(() => {
-          const total = sumUsage(open.steps)
-          return total ? (
-            <div className="hv-run__usage">
-              <span className="hv-run__usage-label">Токены за запуск</span>
-              <UsageBadges usage={total} big />
-            </div>
-          ) : null
-        })()}
-        {open.steps.map((step) => (
-          <div className="hv-step" key={step.stepId}>
-            <div className="hv-step__head">
-              <b>{step.agentName}</b>
-              <span className="hv-step__engine">{ENGINE_LABEL[step.engine]}</span>
-            </div>
-            <Findings step={step} />
-          </div>
-        ))}
-      </div>
+        <RunResults run={open} />
+      </>
     )
   }
 

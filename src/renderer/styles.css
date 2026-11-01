@@ -1017,6 +1017,190 @@ body {
   font-weight: 600;
   opacity: 0.85;
 }
+.hv-step__count {
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+/* --- result view toggle (GitLab / list) --- */
+.hv-viewtabs {
+  display: inline-flex;
+  gap: 4px;
+  margin: 8px 0 6px;
+}
+.hv-viewtabs button {
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 7px;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.14));
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.hv-viewtabs button.is-active {
+  background: var(--accent-soft, rgba(120, 160, 255, 0.16));
+  border-color: var(--accent, rgba(120, 160, 255, 0.5));
+  font-weight: 600;
+}
+
+/* --- GitLab-style diff viewer --- */
+.dv {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.dv-file {
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+  border-radius: 8px;
+  overflow: hidden;
+}
+.dv-file__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 6px 10px;
+  background: var(--panel-2, rgba(255, 255, 255, 0.04));
+  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+  font-size: 12px;
+}
+.dv-file__path {
+  font-family: ui-monospace, "Cascadia Code", "Consolas", monospace;
+  font-weight: 600;
+}
+.dv-file__from {
+  opacity: 0.6;
+  font-size: 11px;
+}
+.dv-tag {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 7px;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.18));
+  opacity: 0.85;
+}
+.dv-tag--new {
+  color: #7ad17a;
+  border-color: rgba(76, 175, 80, 0.5);
+}
+.dv-tag--del {
+  color: #e59aa2;
+  border-color: rgba(224, 82, 96, 0.5);
+}
+.dv-code-block {
+  font-family: ui-monospace, "Cascadia Code", "Consolas", monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-x: auto;
+}
+.dv-row {
+  display: flex;
+  align-items: flex-start;
+  white-space: pre;
+  min-width: max-content;
+}
+.dv-gutter {
+  flex: 0 0 auto;
+  width: 40px;
+  padding: 0 6px;
+  text-align: right;
+  color: var(--muted, rgba(255, 255, 255, 0.4));
+  user-select: none;
+  font-variant-numeric: tabular-nums;
+  background: var(--panel-2, rgba(255, 255, 255, 0.02));
+}
+.dv-sign {
+  flex: 0 0 auto;
+  width: 14px;
+  text-align: center;
+  user-select: none;
+  opacity: 0.8;
+}
+.dv-text {
+  flex: 1 1 auto;
+  padding-right: 10px;
+  white-space: pre;
+}
+.dv-add {
+  background: rgba(76, 175, 80, 0.14);
+}
+.dv-add .dv-sign {
+  color: #7ad17a;
+}
+.dv-del {
+  background: rgba(224, 82, 96, 0.14);
+}
+.dv-del .dv-sign {
+  color: #e59aa2;
+}
+.dv-hunk {
+  background: var(--panel-2, rgba(120, 160, 255, 0.08));
+  color: var(--muted, rgba(255, 255, 255, 0.55));
+}
+.dv-hunk .dv-text {
+  padding-left: 8px;
+  font-style: italic;
+}
+
+/* inline review comment (GitLab discussion style) */
+.dv-comment {
+  margin: 4px 8px 8px 54px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.14));
+  border-left: 3px solid var(--accent, rgba(120, 160, 255, 0.6));
+  background: var(--panel-2, rgba(255, 255, 255, 0.03));
+  font-family: var(--font, system-ui), sans-serif;
+  white-space: normal;
+}
+.dv-comment__head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 12px;
+}
+.dv-comment__by {
+  font-size: 10px;
+  opacity: 0.6;
+  margin-left: auto;
+}
+.dv-comment__detail {
+  font-size: 12px;
+  margin-top: 3px;
+  opacity: 0.92;
+}
+.dv-comment__sug {
+  font-size: 12px;
+  margin-top: 3px;
+  opacity: 0.85;
+}
+.dv-comment.dv-sev-critical {
+  border-left-color: var(--breach, #e05260);
+}
+.dv-comment.dv-sev-major {
+  border-left-color: #e0894a;
+}
+.dv-comment.dv-sev-minor {
+  border-left-color: #e0c24a;
+}
+.dv-comment.dv-sev-praise {
+  border-left-color: var(--ok, #4caf50);
+}
+.dv-file-comments {
+  padding: 8px 10px;
+  border-top: 1px dashed var(--border, rgba(255, 255, 255, 0.12));
+}
+.dv-file-comments__label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.55;
+  margin-bottom: 4px;
+}
+.dv-file-comments .dv-comment {
+  margin-left: 0;
+}
 .hv-summary {
   font-size: 12px;
   opacity: 0.9;

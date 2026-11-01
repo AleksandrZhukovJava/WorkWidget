@@ -96,6 +96,13 @@ export async function runReview(
     return run
   }
 
+  // Keep the reviewed diff on the run so the UI can render a GitLab-style code view with inline
+  // findings (and history keeps it). Cap the stored copy so a huge MR can't bloat the store.
+  const MAX_STORED_DIFF = 500_000
+  run.diff = diff.length > MAX_STORED_DIFF ? diff.slice(0, MAX_STORED_DIFF) : diff
+  upsertRun(run)
+  emit({ runId, kind: 'diff', diff: run.diff })
+
   const context = sourceContext(source)
   const prohibitions = enabledProhibitionTexts()
   const repoDir = source.kind === 'branch' ? source.repo : undefined
