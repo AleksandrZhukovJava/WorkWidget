@@ -2,17 +2,26 @@ import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { homedir } from 'node:os'
+import { getClaudeCliPath } from '../store'
+import { getAnthropicApiKey } from '../../store/credentials'
 
 /**
  * Thin wrapper around the user's installed `claude` CLI. We deliberately do NOT handle the
  * subscription OAuth flow ourselves — we drive the already-logged-in CLI, which uses the
- * user's existing session. On Windows `claude` is typically a .cmd shim, so spawn via shell.
+ * user's existing session. If that session isn't usable, an Anthropic API key (from settings)
+ * is injected as ANTHROPIC_API_KEY. On Windows `claude` is typically a .cmd shim, so spawn via shell.
  */
 const IS_WIN = process.platform === 'win32'
 
-/** The command to invoke. Allow an override later via settings; default to PATH lookup. */
+/** The command to invoke: an explicit configured path, else an env override, else PATH lookup. */
 function claudeCmd(): string {
-  return process.env.JIRA_WIDGET_CLAUDE_CLI?.trim() || 'claude'
+  return getClaudeCliPath() || process.env.JIRA_WIDGET_CLAUDE_CLI?.trim() || 'claude'
+}
+
+/** Spawn env: the key (when set) switches the CLI to API-key auth instead of the login session. */
+function spawnEnv(): NodeJS.ProcessEnv {
+  const key = getAnthropicApiKey()
+  return key ? { ...process.env, ANTHROPIC_API_KEY: key } : { ...process.env }
 }
 
 interface RunOpts {
@@ -49,7 +58,7 @@ export function runClaudePrint(opts: RunOpts): Promise<ClaudePrintResult> {
       cwd: opts.cwd,
       shell: IS_WIN,
       windowsHide: true,
-      env: { ...process.env }
+      env: spawnEnv()
     })
     let stdout = ''
     let stderr = ''

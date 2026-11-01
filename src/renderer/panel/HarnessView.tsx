@@ -90,6 +90,12 @@ function Findings({ step }: { step: HarnessStepResult }): JSX.Element {
 export function HarnessView({ gitlabEnabled }: { gitlabEnabled: boolean }): JSX.Element {
   const [sub, setSub] = useState<Sub>('run')
   const [engine, setEngine] = useState<EngineStatus | null>(null)
+  // Claude engine config (API-key fallback + explicit CLI path).
+  const [cfgOpen, setCfgOpen] = useState(false)
+  const [claudeKey, setClaudeKey] = useState('')
+  const [cliPath, setCliPath] = useState('')
+  const [hasKey, setHasKey] = useState(false)
+  const [cfgMsg, setCfgMsg] = useState<string | null>(null)
   const [agents, setAgents] = useState<HarnessAgent[]>([])
   const [prohibitions, setProhibitions] = useState<Prohibition[]>([])
   const [runs, setRuns] = useState<HarnessRun[]>([])
@@ -134,6 +140,10 @@ export function HarnessView({ gitlabEnabled }: { gitlabEnabled: boolean }): JSX.
 
   useEffect(() => {
     void window.api.harnessEngineStatus().then(setEngine)
+    void window.api.harnessClaudeConfig().then((c) => {
+      setHasKey(c.hasKey)
+      setCliPath(c.cliPath)
+    })
     void window.api.harnessListAgents().then((a) => {
       setAgents(a)
       setSelAgents(new Set(a.filter((x) => x.kind === 'reviewer').map((x) => x.id)))
@@ -169,6 +179,24 @@ export function HarnessView({ gitlabEnabled }: { gitlabEnabled: boolean }): JSX.
       else next.add(id)
       return next
     })
+  }
+
+  async function saveClaudeCfg(): Promise<void> {
+    setCfgMsg(null)
+    if (claudeKey.trim()) {
+      await window.api.harnessSetClaudeKey(claudeKey.trim())
+      setClaudeKey('')
+      setHasKey(true)
+    }
+    await window.api.harnessSetCliPath(cliPath)
+    setCfgMsg('Сохранено ✓')
+    setEngine(await window.api.harnessEngineStatus())
+  }
+  async function clearClaudeKey(): Promise<void> {
+    await window.api.harnessSetClaudeKey('')
+    setHasKey(false)
+    setCfgMsg('Ключ удалён')
+    setEngine(await window.api.harnessEngineStatus())
   }
 
   const running = liveRun?.status === 'running'
@@ -221,7 +249,53 @@ export function HarnessView({ gitlabEnabled }: { gitlabEnabled: boolean }): JSX.
         <span className={`hv-engine ${engine?.local.reachable ? 'is-ok' : 'is-off'}`}>
           Локальная: {engine ? (engine.local.reachable ? 'доступна' : 'не запущена') : '…'}
         </span>
+        <button className="hv-cfg-toggle" title="Настройки движка Claude" onClick={() => setCfgOpen((v) => !v)}>
+          ⚙ Claude
+        </button>
       </div>
+
+      {cfgOpen && (
+        <div className="hv-cfg">
+          {engine && engine.claude.cliFound && !engine.claude.loggedIn && (
+            <div className="status-msg err">
+              Claude CLI не авторизован. Выполни <code>claude</code> → <code>/login</code> в
+              терминале, либо укажи API-ключ ниже.
+            </div>
+          )}
+          <div className="field">
+            <label>Anthropic API-ключ {hasKey && <span className="hv-badge">сохранён</span>}</label>
+            <input
+              type="password"
+              value={claudeKey}
+              onChange={(e) => setClaudeKey(e.target.value)}
+              placeholder={hasKey ? '•••••••• (оставь пустым — не менять)' : 'sk-ant-… (необязательно)'}
+            />
+            <div className="hint">
+              Если задан — используется вместо залогиненного CLI (оплата по токенам). Пусто —
+              работает подписочная сессия CLI.
+            </div>
+          </div>
+          <div className="field">
+            <label>Путь к claude CLI</label>
+            <input
+              value={cliPath}
+              onChange={(e) => setCliPath(e.target.value)}
+              placeholder="пусто = искать в PATH"
+            />
+          </div>
+          <div className="row">
+            <button className="btn btn--primary" onClick={() => void saveClaudeCfg()}>
+              Сохранить
+            </button>
+            {hasKey && (
+              <button className="btn" onClick={() => void clearClaudeKey()}>
+                Удалить ключ
+              </button>
+            )}
+            {cfgMsg && <span className="hint">{cfgMsg}</span>}
+          </div>
+        </div>
+      )}
 
       <div className="hv-subnav">
         {(['run', 'agents', 'prohibitions', 'history'] as Sub[]).map((s) => (

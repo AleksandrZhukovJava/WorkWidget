@@ -11,14 +11,25 @@ interface HarnessState {
   agents: HarnessAgent[]
   prohibitions: Prohibition[]
   runs: HarnessRun[]
+  /** optional explicit path to the `claude` CLI, for when it isn't on PATH ('' = use PATH) */
+  claudeCliPath: string
 }
 
 const MAX_RUNS = 100
 
 const harnessStore = new Store<HarnessState>({
   name: 'coder-harness',
-  defaults: { agents: [], prohibitions: [], runs: [] }
+  defaults: { agents: [], prohibitions: [], runs: [], claudeCliPath: '' }
 })
+
+/** Explicit `claude` CLI path (empty = look it up on PATH). */
+export function getClaudeCliPath(): string {
+  return harnessStore.get('claudeCliPath') ?? ''
+}
+
+export function setClaudeCliPath(path: string): void {
+  harnessStore.set('claudeCliPath', path.trim())
+}
 
 // ---- built-in prohibitions (locked: always present, never disableable/deletable) ----
 // Keyed by a stable id so we can keep their text in sync on upgrade without duplicating.

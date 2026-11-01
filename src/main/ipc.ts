@@ -87,8 +87,11 @@ import {
   saveProhibition,
   deleteProhibition,
   getRuns,
-  getRun
+  getRun,
+  getClaudeCliPath,
+  setClaudeCliPath
 } from './harness/store'
+import { setAnthropicApiKey, getAnthropicApiKey } from './store/credentials'
 import { runReview, cancelRun } from './harness/review'
 import { engineStatus } from './harness/engine'
 import { formatReviewNote } from './harness/format'
@@ -695,6 +698,18 @@ export function registerIpc(): void {
   }
 
   ipcMain.handle(IPC.harnessEngineStatus, () => engineStatus(true))
+  ipcMain.handle(IPC.harnessClaudeConfig, () => ({
+    hasKey: getAnthropicApiKey() !== null,
+    cliPath: getClaudeCliPath()
+  }))
+  ipcMain.handle(IPC.harnessSetClaudeKey, (_e, key: string) => {
+    setAnthropicApiKey(key)
+    return { ok: true }
+  })
+  ipcMain.handle(IPC.harnessSetCliPath, (_e, path: string) => {
+    setClaudeCliPath(path)
+    return { ok: true }
+  })
   ipcMain.handle(IPC.harnessListAgents, () => getAgents())
   ipcMain.handle(IPC.harnessSaveAgent, (_e, agent: HarnessAgent) => saveAgent(agent))
   ipcMain.handle(IPC.harnessDeleteAgent, (_e, id: string) => deleteAgent(id))
