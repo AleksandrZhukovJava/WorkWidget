@@ -42,13 +42,13 @@ export interface InlineFinding extends ReviewFinding {
 }
 
 type LineKind = 'add' | 'del' | 'ctx' | 'hunk'
-interface DiffLine {
+export interface DiffLine {
   kind: LineKind
   oldNo?: number
   newNo?: number
   text: string
 }
-interface DiffFile {
+export interface DiffFile {
   oldPath: string
   newPath: string
   isNew: boolean
@@ -164,6 +164,58 @@ function lineIndexForFinding(file: DiffFile, line: number | undefined): number {
   if (idx >= 0) return idx
   idx = file.lines.findIndex((l) => (l.kind === 'del' || l.kind === 'ctx') && l.oldNo === line)
   return idx
+}
+
+/** A snippet line, flagged if it is the one a finding points at (highlighted in SnippetView). */
+export interface SnippetLine extends DiffLine {
+  target: boolean
+}
+
+/**
+ * The few diff lines around a finding's target line, for a focused "вот этот участок" snippet.
+ * Returns null when the finding has no locatable file+line in the diff. `ctx` lines of context
+ * are kept on each side; hunk-separator lines are dropped so the snippet reads as plain code.
+ */
+export function extractSnippet(
+  files: DiffFile[],
+  findingFile: string | undefined,
+  findingLine: number | undefined,
+  ctx = 3
+): { path: string; lines: SnippetLine[] } | null {
+  if (!findingFile || !findingLine) return null
+  const file = files.find((f) => fileMatches(findingFile, f))
+  if (!file) return null
+  const idx = lineIndexForFinding(file, findingLine)
+  if (idx < 0) return null
+  const start = Math.max(0, idx - ctx)
+  const end = Math.min(file.lines.length - 1, idx + ctx)
+  const lines: SnippetLine[] = []
+  for (let i = start; i <= end; i++) {
+    const l = file.lines[i]
+    if (l.kind === 'hunk') continue
+    lines.push({ ...l, target: i === idx })
+  }
+  return { path: file.newPath || file.oldPath, lines }
+}
+
+/** Render an extracted snippet in the diff style, with the finding's line highlighted. */
+export function SnippetView({ lines }: { lines: SnippetLine[] }): JSX.Element {
+  return (
+    <div className="dv-code-block dv-snippet">
+      {lines.map((l, i) => (
+        <div className={`dv-row dv-${l.kind}${l.target ? ' dv-target' : ''}`} key={i}>
+          <span className="dv-gutter dv-gutter--old">
+            {l.kind === 'add' ? '' : (l.oldNo ?? '')}
+          </span>
+          <span className="dv-gutter dv-gutter--new">
+            {l.kind === 'del' ? '' : (l.newNo ?? '')}
+          </span>
+          <span className="dv-sign">{l.kind === 'add' ? '+' : l.kind === 'del' ? '-' : ''}</span>
+          <code className="dv-text">{l.text || ' '}</code>
+        </div>
+      ))}
+    </div>
+  )
 }
 
 function Comment({ f }: { f: InlineFinding }): JSX.Element {
