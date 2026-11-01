@@ -1022,6 +1022,97 @@ body {
   opacity: 0.7;
 }
 
+/* --- reviewer picker (dropdown + pin) --- */
+.hv-dropdown {
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.16));
+  border-radius: 8px;
+  background: var(--panel-2, rgba(255, 255, 255, 0.03));
+}
+.hv-dropdown__sum {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+  list-style: none;
+  font-size: 13px;
+}
+.hv-dropdown__sum::-webkit-details-marker {
+  display: none;
+}
+.hv-dropdown__text {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hv-dropdown__count {
+  flex: 0 0 auto;
+  min-width: 18px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 9px;
+  background: var(--accent-soft, rgba(120, 160, 255, 0.16));
+  border: 1px solid var(--accent, rgba(120, 160, 255, 0.5));
+}
+.hv-dropdown__caret {
+  flex: 0 0 auto;
+  width: 0;
+  height: 0;
+  border-left: 5px solid currentColor;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  opacity: 0.55;
+  transition: transform 0.12s ease;
+}
+.hv-dropdown[open] .hv-dropdown__caret {
+  transform: rotate(90deg);
+}
+.hv-dropdown__menu {
+  border-top: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+  padding: 4px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+.hv-pickrow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 4px;
+  border-radius: 6px;
+}
+.hv-pickrow:hover {
+  background: var(--panel-2, rgba(255, 255, 255, 0.04));
+}
+.hv-pickrow .checkbox-row {
+  flex: 1 1 auto;
+  margin: 0;
+}
+.hv-pin {
+  flex: 0 0 auto;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  padding: 3px 5px;
+  filter: grayscale(1);
+  opacity: 0.45;
+  transition: opacity 0.12s ease, filter 0.12s ease;
+}
+.hv-pin:hover {
+  opacity: 0.8;
+}
+.hv-pin.is-on {
+  filter: none;
+  opacity: 1;
+  border-color: var(--accent, rgba(120, 160, 255, 0.5));
+  background: var(--accent-soft, rgba(120, 160, 255, 0.14));
+}
+
 /* --- result view toggle (GitLab / list) --- */
 .hv-viewtabs {
   display: inline-flex;

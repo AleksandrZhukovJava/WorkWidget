@@ -204,6 +204,10 @@ export function HarnessView({ gitlabEnabled }: { gitlabEnabled: boolean }): JSX.
     })
   }
 
+  async function togglePin(agent: HarnessAgent): Promise<void> {
+    setAgents(await window.api.harnessSaveAgent({ ...agent, pinned: !agent.pinned }))
+  }
+
   async function saveClaudeCfg(): Promise<void> {
     setCfgMsg(null)
     if (claudeKey.trim()) {
@@ -345,6 +349,7 @@ export function HarnessView({ gitlabEnabled }: { gitlabEnabled: boolean }): JSX.
           reviewers={reviewers}
           selAgents={selAgents}
           toggleAgent={toggleAgent}
+          onTogglePin={togglePin}
           running={!!running}
           onStart={() => void startReview()}
           onCancel={() => liveRun && void window.api.harnessCancel(liveRun.id)}
@@ -369,6 +374,69 @@ export function HarnessView({ gitlabEnabled }: { gitlabEnabled: boolean }): JSX.
   )
 }
 
+// ---------------- Reviewer picker (dropdown + pin) ----------------
+/** Pinned reviewers first, then the rest; order is otherwise preserved. */
+function sortReviewers(reviewers: HarnessAgent[]): HarnessAgent[] {
+  return reviewers
+    .map((a, i) => ({ a, i }))
+    .sort((x, y) => Number(Boolean(y.a.pinned)) - Number(Boolean(x.a.pinned)) || x.i - y.i)
+    .map((e) => e.a)
+}
+
+/**
+ * Reviewer selection as a dropdown: the summary shows who's chosen; the menu lists reviewers with
+ * a checkbox and a pin toggle. Pinned reviewers (📌) sort to the top and persist on the agent.
+ */
+function ReviewerPicker({
+  reviewers,
+  selAgents,
+  toggleAgent,
+  onTogglePin
+}: {
+  reviewers: HarnessAgent[]
+  selAgents: Set<string>
+  toggleAgent: (id: string) => void
+  onTogglePin: (agent: HarnessAgent) => void
+}): JSX.Element {
+  if (reviewers.length === 0) return <div className="hint">Нет агентов-ревьюверов.</div>
+  const sorted = sortReviewers(reviewers)
+  const chosen = sorted.filter((a) => selAgents.has(a.id))
+  const summary =
+    chosen.length === 0
+      ? 'Никто не выбран'
+      : chosen.length <= 2
+        ? chosen.map((a) => a.name).join(', ')
+        : `${chosen[0].name} + ещё ${chosen.length - 1}`
+
+  return (
+    <details className="hv-dropdown">
+      <summary className="hv-dropdown__sum">
+        <span className="hv-dropdown__text">{summary}</span>
+        <span className="hv-dropdown__count">{chosen.length}</span>
+        <span className="hv-dropdown__caret" />
+      </summary>
+      <div className="hv-dropdown__menu">
+        {sorted.map((a) => (
+          <div className="hv-pickrow" key={a.id}>
+            <label className="checkbox-row">
+              <input type="checkbox" checked={selAgents.has(a.id)} onChange={() => toggleAgent(a.id)} />
+              {a.name} <span className="hv-agent-engine">· {ENGINE_LABEL[a.engine]}</span>
+            </label>
+            <button
+              type="button"
+              className={`hv-pin${a.pinned ? ' is-on' : ''}`}
+              title={a.pinned ? 'Открепить' : 'Закрепить вверху'}
+              onClick={() => onTogglePin(a)}
+            >
+              📌
+            </button>
+          </div>
+        ))}
+      </div>
+    </details>
+  )
+}
+
 // ---------------- Run tab ----------------
 function RunTab(props: {
   gitlabEnabled: boolean
@@ -386,6 +454,7 @@ function RunTab(props: {
   reviewers: HarnessAgent[]
   selAgents: Set<string>
   toggleAgent: (id: string) => void
+  onTogglePin: (agent: HarnessAgent) => void
   running: boolean
   onStart: () => void
   onCancel: () => void
@@ -447,13 +516,12 @@ function RunTab(props: {
 
       <div className="field">
         <label>Ревьюверы</label>
-        {p.reviewers.length === 0 && <div className="hint">Нет агентов-ревьюверов.</div>}
-        {p.reviewers.map((a) => (
-          <label className="checkbox-row" key={a.id}>
-            <input type="checkbox" checked={p.selAgents.has(a.id)} onChange={() => p.toggleAgent(a.id)} />
-            {a.name} <span className="hv-agent-engine">· {ENGINE_LABEL[a.engine]}</span>
-          </label>
-        ))}
+        <ReviewerPicker
+          reviewers={p.reviewers}
+          selAgents={p.selAgents}
+          toggleAgent={p.toggleAgent}
+          onTogglePin={p.onTogglePin}
+        />
       </div>
 
       <div className="row">
