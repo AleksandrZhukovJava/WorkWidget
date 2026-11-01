@@ -355,3 +355,43 @@ export async function isMrApproved(projectId: number, iid: number): Promise<bool
     return false
   }
 }
+
+interface GlMrChange {
+  old_path: string
+  new_path: string
+  new_file: boolean
+  deleted_file: boolean
+  renamed_file: boolean
+  diff: string
+}
+
+/**
+ * The MR's changes as a single unified diff string (for the review harness). GitLab returns
+ * per-file hunks in `changes[].diff`; we prepend a `diff --git` / `---` / `+++` header per file
+ * so the whole thing reads like a normal unified diff to the model. Read-only.
+ */
+export async function getMrDiff(projectId: number, iid: number): Promise<string> {
+  const r = await glRequest<{ changes?: GlMrChange[] }>(
+    `/projects/${projectId}/merge_requests/${iid}/changes`
+  )
+  return (r.changes ?? [])
+    .map((c) => {
+      const header = `diff --git a/${c.old_path} b/${c.new_path}`
+      const a = c.new_file ? '/dev/null' : `a/${c.old_path}`
+      const b = c.deleted_file ? '/dev/null' : `b/${c.new_path}`
+      return `${header}\n--- ${a}\n+++ ${b}\n${c.diff}`
+    })
+    .join('\n')
+}
+
+/**
+ * Post a plain note (comment) on an MR. This is a review comment only — NEVER a merge, approve
+ * or close action (see the [[gitlab-no-merge-forcepush]] hard rule). Called only on explicit
+ * user confirmation from the UI.
+ */
+export async function postMrNote(projectId: number, iid: number, body: string): Promise<void> {
+  await glRequest(`/projects/${projectId}/merge_requests/${iid}/notes`, {
+    method: 'POST',
+    body: { body }
+  })
+}

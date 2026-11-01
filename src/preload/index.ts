@@ -22,6 +22,12 @@ import type {
   GitlabProject,
   GitlabUser,
   PushResult,
+  HarnessAgent,
+  HarnessRun,
+  HarnessRunEvent,
+  HarnessSource,
+  Prohibition,
+  EngineStatus,
   DashboardData,
   JiraConfig,
   JiraIssue,
@@ -248,6 +254,36 @@ const api = {
   widgetSetInteractive: (interactive: boolean): void =>
     ipcRenderer.send(IPC.widgetSetInteractive, interactive),
   hideWidget: (): Promise<void> => ipcRenderer.invoke(IPC.hideWidget),
+
+  // coder agent harness
+  harnessEngineStatus: (): Promise<EngineStatus> => ipcRenderer.invoke(IPC.harnessEngineStatus),
+  harnessListAgents: (): Promise<HarnessAgent[]> => ipcRenderer.invoke(IPC.harnessListAgents),
+  harnessSaveAgent: (agent: HarnessAgent): Promise<HarnessAgent[]> =>
+    ipcRenderer.invoke(IPC.harnessSaveAgent, agent),
+  harnessDeleteAgent: (id: string): Promise<HarnessAgent[]> =>
+    ipcRenderer.invoke(IPC.harnessDeleteAgent, id),
+  harnessListProhibitions: (): Promise<Prohibition[]> =>
+    ipcRenderer.invoke(IPC.harnessListProhibitions),
+  harnessSaveProhibition: (p: Prohibition): Promise<Prohibition[]> =>
+    ipcRenderer.invoke(IPC.harnessSaveProhibition, p),
+  harnessDeleteProhibition: (id: string): Promise<Prohibition[]> =>
+    ipcRenderer.invoke(IPC.harnessDeleteProhibition, id),
+  harnessReviewMr: (source: HarnessSource, agentIds: string[]): Promise<ActionResult> =>
+    ipcRenderer.invoke(IPC.harnessReviewMr, source, agentIds),
+  harnessReviewBranch: (source: HarnessSource, agentIds: string[]): Promise<ActionResult> =>
+    ipcRenderer.invoke(IPC.harnessReviewBranch, source, agentIds),
+  harnessCancel: (runId: string): Promise<ActionResult> =>
+    ipcRenderer.invoke(IPC.harnessCancel, runId),
+  harnessListRuns: (): Promise<HarnessRun[]> => ipcRenderer.invoke(IPC.harnessListRuns),
+  harnessGetRun: (id: string): Promise<HarnessRun | undefined> =>
+    ipcRenderer.invoke(IPC.harnessGetRun, id),
+  harnessPostReviewComments: (runId: string): Promise<ActionResult> =>
+    ipcRenderer.invoke(IPC.harnessPostReviewComments, runId),
+  onHarnessRunEvent: (cb: (ev: HarnessRunEvent) => void): (() => void) => {
+    const listener = (_e: unknown, ev: HarnessRunEvent): void => cb(ev)
+    ipcRenderer.on(IPC.harnessRunEvent, listener)
+    return () => ipcRenderer.removeListener(IPC.harnessRunEvent, listener)
+  },
 
   // auto-update
   getUpdateStatus: (): Promise<UpdateStatus> => ipcRenderer.invoke(IPC.updateGet),

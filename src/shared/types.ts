@@ -616,6 +616,112 @@ export interface GitlabAutomation {
   readyForTestStatus: string
 }
 
+// ---------------- Coder Agent Harness (Phase 1: review) ----------------
+
+/** Which backend runs an agent. 'default' = the harness-wide default (claude if available, else local). */
+export type HarnessEngine = 'claude' | 'local' | 'default'
+
+/** Role of a preconfigured agent. Phase 1 ships reviewers; analyzer/coder arrive in Phase 2. */
+export type HarnessAgentKind = 'reviewer' | 'analyzer' | 'coder'
+
+/** A preconfigured agent (a role with its own prompt, engine and tool allow/deny lists). */
+export interface HarnessAgent {
+  id: string
+  name: string
+  kind: HarnessAgentKind
+  engine: HarnessEngine
+  /** model id override; '' = engine default (e.g. 'sonnet'/'opus' for claude, or a local model id) */
+  model: string
+  /** the role instructions injected as the agent's system prompt */
+  systemPrompt: string
+  /** short label of what this agent targets, shown in the UI */
+  focus: string
+  skillIds: string[]
+  allowedTools: string[]
+  disallowedTools: string[]
+  /** seeded default — editable, but never deletable */
+  builtin?: boolean
+}
+
+/** A hard rule agents must never break. Builtin ones are locked (can't be disabled or deleted). */
+export interface Prohibition {
+  id: string
+  text: string
+  enabled: boolean
+  builtin: boolean
+}
+
+export type FindingSeverity = 'critical' | 'major' | 'minor' | 'nit' | 'praise'
+
+/** One review finding from an agent. */
+export interface ReviewFinding {
+  severity: FindingSeverity
+  title: string
+  detail: string
+  file?: string
+  line?: number
+  suggestion?: string
+}
+
+export type HarnessRunStatus = 'running' | 'done' | 'error' | 'cancelled'
+export type HarnessSourceKind = 'mr' | 'branch'
+
+/** What is being reviewed — a GitLab MR or a local branch diff. */
+export interface HarnessSource {
+  kind: HarnessSourceKind
+  /** human label, e.g. "MR !42 feat(OPS-1)" or "feature/OPS-1 ← develop" */
+  label: string
+  // mr
+  projectId?: number
+  iid?: number
+  webUrl?: string
+  // branch
+  repo?: string
+  base?: string
+  branch?: string
+  /** Jira key parsed from the MR/branch, when present */
+  jiraKey?: string | null
+}
+
+/** One agent's result within a run. */
+export interface HarnessStepResult {
+  stepId: string
+  agentId: string
+  agentName: string
+  engine: HarnessEngine
+  status: HarnessRunStatus
+  findings: ReviewFinding[]
+  /** the agent's overall summary text */
+  summary: string
+  error?: string
+  startedAt: string
+  finishedAt?: string
+}
+
+/** A single review run (one source, one or more reviewer agents). Persisted for history. */
+export interface HarnessRun {
+  id: string
+  source: HarnessSource
+  startedAt: string
+  finishedAt?: string
+  status: HarnessRunStatus
+  steps: HarnessStepResult[]
+}
+
+/** Streamed from main → renderer over the harnessRunEvent channel while a run executes. */
+export type HarnessRunEvent =
+  | { runId: string; kind: 'run-start'; run: HarnessRun }
+  | { runId: string; kind: 'step-start'; stepId: string }
+  | { runId: string; kind: 'log'; stepId: string; text: string }
+  | { runId: string; kind: 'step-done'; step: HarnessStepResult }
+  | { runId: string; kind: 'run-done'; run: HarnessRun }
+
+/** Availability of each engine, for the UI to show which backends can run. */
+export interface EngineStatus {
+  claude: { cliFound: boolean; loggedIn: boolean; version: string }
+  local: { reachable: boolean; baseUrl: string }
+}
+
 export interface ActionResult {
   ok: boolean
   error?: string

@@ -3,7 +3,18 @@
  * renderer UI without Electron. Never bundled into the Electron build.
  */
 import type { JiraWidgetApi, IssuesPayload } from '../../preload'
-import type { AppSettings, ChecklistItem, JiraIssue } from '@shared/types'
+import type {
+  AppSettings,
+  ChecklistItem,
+  JiraIssue,
+  HarnessAgent,
+  HarnessRun,
+  HarnessRunEvent,
+  HarnessSource,
+  HarnessStepResult,
+  Prohibition,
+  ReviewFinding
+} from '@shared/types'
 
 const now = Date.now()
 
@@ -381,6 +392,100 @@ const issueSubs = new Set<(p: IssuesPayload) => void>()
 }
 
 let mockWidgetImage: string | null = null
+
+// ---- Coder Agent Harness (mock) ----
+let harnessAgents: HarnessAgent[] = [
+  {
+    id: 'rev-biz',
+    name: 'Ревьювер бизнес-логики',
+    kind: 'reviewer',
+    engine: 'default',
+    model: '',
+    focus: 'корректность, краевые случаи, целостность данных',
+    systemPrompt: 'Ревьюишь бизнес-логику и корректность.',
+    skillIds: [],
+    allowedTools: ['Read', 'Grep', 'Glob'],
+    disallowedTools: [],
+    builtin: true
+  },
+  {
+    id: 'rev-style',
+    name: 'Ревьювер стиля кода',
+    kind: 'reviewer',
+    engine: 'local',
+    model: '',
+    focus: 'читаемость, именование, дублирование',
+    systemPrompt: 'Ревьюишь стиль и читаемость.',
+    skillIds: [],
+    allowedTools: ['Read', 'Grep', 'Glob'],
+    disallowedTools: [],
+    builtin: true
+  }
+]
+let harnessProhibitions: Prohibition[] = [
+  { id: 'no-mr-merge', text: 'Никогда не мержить/аппрувить/закрывать MR.', enabled: true, builtin: true },
+  { id: 'no-force-push', text: 'Никогда git push --force.', enabled: true, builtin: true },
+  { id: 'no-secrets', text: 'Не читать/править секреты (.env, ключи).', enabled: true, builtin: true }
+]
+let harnessRuns: HarnessRun[] = []
+const harnessSubs = new Set<(ev: HarnessRunEvent) => void>()
+function emitHarness(ev: HarnessRunEvent): void {
+  harnessSubs.forEach((cb) => cb(ev))
+}
+function simulateRun(source: HarnessSource, agentIds: string[]): void {
+  const runId = `run-${Date.now()}`
+  const startedAt = new Date().toISOString()
+  const steps: HarnessStepResult[] = agentIds.map((id, i) => {
+    const a = harnessAgents.find((x) => x.id === id)
+    return {
+      stepId: `${runId}-${i}`,
+      agentId: id,
+      agentName: a?.name ?? id,
+      engine: a?.engine ?? 'default',
+      status: 'running',
+      findings: [],
+      summary: '',
+      startedAt
+    }
+  })
+  const run: HarnessRun = { id: runId, source, startedAt, status: 'running', steps }
+  harnessRuns = [run, ...harnessRuns]
+  emitHarness({ runId, kind: 'run-start', run })
+  steps.forEach((step, i) => {
+    emitHarness({ runId, kind: 'step-start', stepId: step.stepId })
+    setTimeout(() => emitHarness({ runId, kind: 'log', stepId: step.stepId, text: 'анализирую дифф…' }), 300)
+    setTimeout(
+      () => {
+        const findings: ReviewFinding[] =
+          i === 0
+            ? [
+                { severity: 'major', title: 'Необработанный краевой случай', detail: 'При пустом списке код упадёт с исключением.', file: 'src/service.ts', line: 42, suggestion: 'Добавить проверку на пустоту до обращения к [0].' },
+                { severity: 'minor', title: 'Потенциальная гонка', detail: 'Счётчик обновляется без синхронизации.', file: 'src/service.ts', line: 71 }
+              ]
+            : [
+                { severity: 'nit', title: 'Непонятное имя', detail: 'tmp2 — лучше описательное имя.', file: 'src/service.ts', line: 50 },
+                { severity: 'praise', title: 'Хороший тест', detail: 'Добавлен тест на регрессию — отлично.', file: 'src/service.test.ts' }
+              ]
+        const done: HarnessStepResult = {
+          ...step,
+          status: 'done',
+          summary: 'Итог: несколько замечаний, критичных нет.',
+          findings,
+          finishedAt: new Date().toISOString()
+        }
+        const idx = run.steps.findIndex((s) => s.stepId === step.stepId)
+        run.steps[idx] = done
+        emitHarness({ runId, kind: 'step-done', step: done })
+        if (run.steps.every((s) => s.status !== 'running')) {
+          run.status = 'done'
+          run.finishedAt = new Date().toISOString()
+          emitHarness({ runId, kind: 'run-done', run })
+        }
+      },
+      900 + i * 500
+    )
+  })
+}
 
 const api: JiraWidgetApi = {
   getConfig: async () => ({
@@ -772,6 +877,51 @@ TimeoutException: payment gateway did not respond
     { iid: 88, projectId: 102, title: 'employee-operation-service-2: OPS-1355 экспорт CSV', sourceBranch: 'employee-operation-service-2/feature/OPS-1355', targetBranch: 'main', webUrl: 'https://gitlab.example.com/demo/api/-/merge_requests/88', author: 'Пётр Иванов', reviewers: [], jiraKey: 'SERVICE-2', approved: false, updatedAt: new Date(now - 600000).toISOString() }
   ],
   gitlabDetectProject: async () => ({ id: 101, pathWithNamespace: 'demo/web-app', webUrl: 'https://gitlab.example.com/demo/web-app', defaultBranch: 'develop' }),
+
+  // ---- Coder Agent Harness ----
+  harnessEngineStatus: async () => ({
+    claude: { cliFound: true, loggedIn: true, version: '1.0.0 (mock)' },
+    local: { reachable: true, baseUrl: 'http://localhost:1234/v1' }
+  }),
+  harnessListAgents: async () => harnessAgents,
+  harnessSaveAgent: async (agent: HarnessAgent) => {
+    const idx = harnessAgents.findIndex((a) => a.id === agent.id)
+    if (agent.id && idx >= 0) harnessAgents[idx] = { ...harnessAgents[idx], ...agent }
+    else harnessAgents = [...harnessAgents, { ...agent, id: agent.id || `agent-${Date.now()}` }]
+    return harnessAgents
+  },
+  harnessDeleteAgent: async (id: string) => {
+    harnessAgents = harnessAgents.filter((a) => !(a.id === id && !a.builtin))
+    return harnessAgents
+  },
+  harnessListProhibitions: async () => harnessProhibitions,
+  harnessSaveProhibition: async (p: Prohibition) => {
+    if (harnessProhibitions.some((x) => x.id === p.id && x.builtin)) return harnessProhibitions
+    const idx = harnessProhibitions.findIndex((x) => x.id === p.id)
+    if (p.id && idx >= 0) harnessProhibitions[idx] = { ...p, builtin: false }
+    else harnessProhibitions = [...harnessProhibitions, { ...p, id: p.id || `proh-${Date.now()}`, builtin: false }]
+    return harnessProhibitions
+  },
+  harnessDeleteProhibition: async (id: string) => {
+    harnessProhibitions = harnessProhibitions.filter((p) => p.id !== id || p.builtin)
+    return harnessProhibitions
+  },
+  harnessReviewMr: async (source: HarnessSource, agentIds: string[]) => {
+    simulateRun(source, agentIds)
+    return { ok: true }
+  },
+  harnessReviewBranch: async (source: HarnessSource, agentIds: string[]) => {
+    simulateRun(source, agentIds)
+    return { ok: true }
+  },
+  harnessCancel: async () => ({ ok: true }),
+  harnessListRuns: async () => harnessRuns,
+  harnessGetRun: async (id: string) => harnessRuns.find((r) => r.id === id),
+  harnessPostReviewComments: async () => ({ ok: true }),
+  onHarnessRunEvent: (cb: (ev: HarnessRunEvent) => void) => {
+    harnessSubs.add(cb)
+    return () => harnessSubs.delete(cb)
+  },
 
   closePanel: async () => {},
   widgetDragStart: () => {},

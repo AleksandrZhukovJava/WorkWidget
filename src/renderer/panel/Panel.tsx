@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { IssueCard } from './IssueCard'
 import { IssueDetail } from './IssueDetail'
+import { HarnessView } from './HarnessView'
 import { UpdateBanner } from '../shared/UpdateBanner'
 import { GitlabView, type MrPrefill } from './GitlabView'
 import { PRIORITY_COLOR, PRIORITY_LABEL, PRIORITY_LEVELS } from '@shared/priority'
@@ -125,6 +126,7 @@ export function Panel({
   const [agentResult, setAgentResult] = useState<AgentPatchResult | null>(null)
   const [coderCfg, setCoderCfg] = useState<AppSettings['coder'] | null>(null)
   const [agentEnabled, setAgentEnabled] = useState(true) // features.agent — gates the card entry
+  const [harnessClassic, setHarnessClassic] = useState(false) // agent tab: harness vs classic coder
   const [gitlabEnabled, setGitlabEnabled] = useState(true) // features.gitlab — gates the MR hand-off
   const [taskBlocks, setTaskBlocks] = useState<TaskBlock[]>([]) // configurable status groups
   const [agentRepo, setAgentRepo] = useState('') // project chosen for this task
@@ -1128,6 +1130,22 @@ export function Panel({
           ))}
         </div>
       ) : view === 'agent' ? (
+        <>
+          <div className="agent-mode">
+            <button
+              className={!harnessClassic ? 'is-active' : ''}
+              onClick={() => setHarnessClassic(false)}
+            >
+              Харнесс
+            </button>
+            <button
+              className={harnessClassic ? 'is-active' : ''}
+              onClick={() => setHarnessClassic(true)}
+            >
+              Классический
+            </button>
+          </div>
+          {harnessClassic ? (
         <div className="panel__list agent">
           {/* Step 1 — task (pick from my tasks) */}
           <div className="agent__step">
@@ -1454,6 +1472,10 @@ export function Panel({
             </>
           )}
         </div>
+          ) : (
+            <HarnessView gitlabEnabled={gitlabEnabled} />
+          )}
+        </>
       ) : view === 'gitlab' ? (
         <GitlabView prefill={mrPrefill} onConsumePrefill={() => setMrPrefill(null)} />
       ) : view === 'dashboard' ? (

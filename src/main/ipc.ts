@@ -1,4 +1,4 @@
-import { ipcMain, shell, app, clipboard, dialog } from 'electron'
+import { ipcMain, shell, app, clipboard, dialog, BrowserWindow } from 'electron'
 import { promises as fsp } from 'node:fs'
 import { join, extname } from 'node:path'
 import { IPC } from '@shared/ipc'
@@ -76,8 +76,22 @@ import {
   diagnoseReviewer,
   createMergeRequest,
   listMyReviewMRs,
-  listMyAuthoredMRs
+  listMyAuthoredMRs,
+  postMrNote
 } from './gitlab/mr'
+import {
+  getAgents,
+  saveAgent,
+  deleteAgent,
+  getProhibitions,
+  saveProhibition,
+  deleteProhibition,
+  getRuns,
+  getRun
+} from './harness/store'
+import { runReview, cancelRun } from './harness/review'
+import { engineStatus } from './harness/engine'
+import { formatReviewNote } from './harness/format'
 import type {
   CreateMrInput,
   CreateMrResult,
@@ -109,9 +123,13 @@ import type {
   AppSettings,
   ChecklistItem,
   DashboardData,
+  HarnessAgent,
+  HarnessRunEvent,
+  HarnessSource,
   HistoryItem,
   OAuthCredentialsInput,
   PanelView,
+  Prohibition,
   SaveCredentialsInput,
   ServerCredentialsInput
 } from '@shared/types'
@@ -667,6 +685,52 @@ export function registerIpc(): void {
   ipcMain.handle(IPC.getIssueDescription, (_e, key: string) =>
     getIssueDescription(key).catch(() => '')
   )
+
+  // ---------------- Coder Agent Harness ----------------
+  // Stream run lifecycle events to every window (the panel keys off run-start's id).
+  const emitRunEvent = (ev: HarnessRunEvent): void => {
+    for (const win of BrowserWindow.getAllWindows()) {
+      if (!win.isDestroyed()) win.webContents.send(IPC.harnessRunEvent, ev)
+    }
+  }
+
+  ipcMain.handle(IPC.harnessEngineStatus, () => engineStatus(true))
+  ipcMain.handle(IPC.harnessListAgents, () => getAgents())
+  ipcMain.handle(IPC.harnessSaveAgent, (_e, agent: HarnessAgent) => saveAgent(agent))
+  ipcMain.handle(IPC.harnessDeleteAgent, (_e, id: string) => deleteAgent(id))
+  ipcMain.handle(IPC.harnessListProhibitions, () => getProhibitions())
+  ipcMain.handle(IPC.harnessSaveProhibition, (_e, p: Prohibition) => saveProhibition(p))
+  ipcMain.handle(IPC.harnessDeleteProhibition, (_e, id: string) => deleteProhibition(id))
+
+  // Fire-and-forget: the run streams its progress over harnessRunEvent; run-start carries the id.
+  ipcMain.handle(IPC.harnessReviewMr, (_e, source: HarnessSource, agentIds: string[]) => {
+    void runReview(source, agentIds, emitRunEvent)
+    return { ok: true }
+  })
+  ipcMain.handle(IPC.harnessReviewBranch, (_e, source: HarnessSource, agentIds: string[]) => {
+    void runReview(source, agentIds, emitRunEvent)
+    return { ok: true }
+  })
+  ipcMain.handle(IPC.harnessCancel, (_e, runId: string) => {
+    cancelRun(runId)
+    return { ok: true }
+  })
+  ipcMain.handle(IPC.harnessListRuns, () => getRuns())
+  ipcMain.handle(IPC.harnessGetRun, (_e, id: string) => getRun(id))
+  ipcMain.handle(IPC.harnessPostReviewComments, async (_e, runId: string) => {
+    const run = getRun(runId)
+    if (!run) return { ok: false, error: 'Запуск не найден' }
+    const s = run.source
+    if (s.kind !== 'mr' || s.projectId === undefined || s.iid === undefined) {
+      return { ok: false, error: 'Комментарии можно постить только для MR' }
+    }
+    try {
+      await postMrNote(s.projectId, s.iid, formatReviewNote(run))
+      return { ok: true }
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : String(err) }
+    }
+  })
 
   // ---- windows ----
   ipcMain.handle(IPC.openSettings, () => {

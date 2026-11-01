@@ -898,6 +898,167 @@ body {
   margin-left: auto;
 }
 
+/* ---------------- Coder Agent Harness ---------------- */
+.agent-mode {
+  display: flex;
+  gap: 6px;
+  padding: 6px 8px 0;
+}
+.agent-mode button {
+  flex: 1;
+  padding: 5px 8px;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+  background: transparent;
+  color: inherit;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.agent-mode button.is-active {
+  background: var(--accent, #4a7dff);
+  border-color: var(--accent, #4a7dff);
+  color: #fff;
+}
+.hv-engines {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 2px 2px 6px;
+}
+.hv-engine {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+  opacity: 0.85;
+}
+.hv-engine.is-ok {
+  border-color: var(--ok, #4caf50);
+}
+.hv-engine.is-off {
+  opacity: 0.5;
+}
+.hv-subnav,
+.hv-source-tabs {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.hv-subnav button,
+.hv-source-tabs button {
+  padding: 4px 10px;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+  background: transparent;
+  color: inherit;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.hv-subnav button.is-active,
+.hv-source-tabs button.is-active {
+  background: var(--accent, #4a7dff);
+  border-color: var(--accent, #4a7dff);
+  color: #fff;
+}
+.hv-agent-engine,
+.hv-step__engine {
+  font-size: 11px;
+  opacity: 0.7;
+}
+.hv-run {
+  margin-top: 8px;
+}
+.hv-step {
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+  border-radius: 8px;
+  padding: 8px;
+  margin-bottom: 8px;
+}
+.hv-step__head {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.hv-summary {
+  font-size: 12px;
+  opacity: 0.85;
+  margin-bottom: 6px;
+}
+.hv-finding {
+  border-left: 3px solid var(--border, rgba(255, 255, 255, 0.2));
+  padding: 4px 8px;
+  margin: 4px 0;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 0 6px 6px 0;
+}
+.hv-finding__head {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+.hv-finding__loc {
+  font-family: monospace;
+  font-size: 11px;
+  opacity: 0.7;
+}
+.hv-finding__detail {
+  font-size: 12px;
+  margin-top: 2px;
+}
+.hv-finding__sug {
+  font-size: 12px;
+  margin-top: 2px;
+  opacity: 0.85;
+}
+.hv-sev-critical {
+  border-left-color: var(--breach, #e05260);
+}
+.hv-sev-major {
+  border-left-color: #e0894a;
+}
+.hv-sev-minor {
+  border-left-color: #e0c24a;
+}
+.hv-sev-praise {
+  border-left-color: var(--ok, #4caf50);
+}
+.hv-card {
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+  border-radius: 8px;
+  padding: 8px;
+  margin-bottom: 8px;
+}
+.hv-card__head {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.hv-badge {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.15));
+  opacity: 0.8;
+}
+.hv-status-error {
+  color: var(--breach, #e05260);
+}
+.hv-proh {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 2px;
+}
+.hv-proh .checkbox-row {
+  flex: 1;
+}
+.hv-edit .field {
+  margin-bottom: 8px;
+}
+
 .dash__toggles {
   display: flex;
   gap: 12px;

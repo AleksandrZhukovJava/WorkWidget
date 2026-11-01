@@ -100,6 +100,22 @@ export const IPC = {
   gitlabDetectProject: 'gitlab:detectProject',
   gitlabBranchCommitTitle: 'gitlab:branchCommitTitle',
 
+  // coder agent harness
+  harnessEngineStatus: 'harness:engineStatus',
+  harnessListAgents: 'harness:listAgents',
+  harnessSaveAgent: 'harness:saveAgent',
+  harnessDeleteAgent: 'harness:deleteAgent',
+  harnessListProhibitions: 'harness:listProhibitions',
+  harnessSaveProhibition: 'harness:saveProhibition',
+  harnessDeleteProhibition: 'harness:deleteProhibition',
+  harnessReviewMr: 'harness:reviewMr',
+  harnessReviewBranch: 'harness:reviewBranch',
+  harnessCancel: 'harness:cancel',
+  harnessListRuns: 'harness:listRuns',
+  harnessGetRun: 'harness:getRun',
+  harnessPostReviewComments: 'harness:postReviewComments',
+  harnessRunEvent: 'harness:runEvent', // push main -> renderer
+
   // auto-update
   updateGet: 'update:get',
   updateCheck: 'update:check',
