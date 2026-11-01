@@ -1201,6 +1201,137 @@ body {
 .dv-file-comments .dv-comment {
   margin-left: 0;
 }
+
+/* --- snippet (focused code around a finding) --- */
+.dv-snippet {
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+  border-radius: 6px;
+  overflow-x: auto;
+}
+.dv-row.dv-target {
+  box-shadow: inset 3px 0 0 var(--accent, #7aa0ff);
+  background: var(--accent-soft, rgba(120, 160, 255, 0.14));
+}
+.dv-row.dv-target.dv-add {
+  background: rgba(76, 175, 80, 0.22);
+}
+.dv-row.dv-target.dv-del {
+  background: rgba(224, 82, 96, 0.22);
+}
+
+/* --- reviewer dropdown --- */
+.hv-rp {
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+  border-radius: 8px;
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+.hv-rp__sum {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px 10px;
+  cursor: pointer;
+  list-style: none;
+  background: var(--panel-2, rgba(255, 255, 255, 0.03));
+}
+.hv-rp__sum::-webkit-details-marker {
+  display: none;
+}
+.hv-rp__caret {
+  width: 0;
+  height: 0;
+  border-left: 5px solid currentColor;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  opacity: 0.6;
+  transition: transform 0.12s ease;
+}
+.hv-rp[open] .hv-rp__caret {
+  transform: rotate(90deg);
+}
+.hv-rp__status {
+  font-size: 11px;
+  opacity: 0.7;
+  margin-left: auto;
+}
+.hv-rp__body {
+  padding: 8px 10px;
+  border-top: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+}
+
+/* --- finding dropdown --- */
+.hv-fi-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 6px 0;
+}
+.hv-fi {
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+  border-left: 3px solid var(--border, rgba(255, 255, 255, 0.2));
+  border-radius: 7px;
+  overflow: hidden;
+}
+.hv-fi.hv-sev-critical {
+  border-left-color: var(--breach, #e05260);
+}
+.hv-fi.hv-sev-major {
+  border-left-color: #e0894a;
+}
+.hv-fi.hv-sev-minor {
+  border-left-color: #e0c24a;
+}
+.hv-fi.hv-sev-praise {
+  border-left-color: var(--ok, #4caf50);
+}
+.hv-fi__sum {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+  list-style: none;
+  font-size: 12px;
+}
+.hv-fi__sum::-webkit-details-marker {
+  display: none;
+}
+.hv-fi__loc {
+  font-family: ui-monospace, "Cascadia Code", "Consolas", monospace;
+  font-size: 11px;
+  opacity: 0.7;
+  white-space: nowrap;
+}
+.hv-fi__title {
+  font-weight: 600;
+}
+.hv-fi__body {
+  padding: 2px 10px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.hv-fi__block {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.hv-fi__label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.55;
+}
+.hv-fi__text {
+  font-size: 12px;
+  opacity: 0.92;
+}
+.hv-fi__fix .hv-fi__text {
+  border-left: 2px solid var(--ok, #4caf50);
+  padding-left: 8px;
+}
 .hv-summary {
   font-size: 12px;
   opacity: 0.9;

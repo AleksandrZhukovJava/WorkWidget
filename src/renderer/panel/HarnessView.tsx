@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type {
   EngineStatus,
   GitlabMR,
@@ -9,9 +9,20 @@ import type {
   HarnessSource,
   HarnessStepResult,
   Prohibition,
+  ReviewFinding,
   TokenUsage
 } from '@shared/types'
-import { DiffView, ENGINE_LABEL, RichText, SEV_LABEL, type InlineFinding } from './DiffView'
+import {
+  DiffView,
+  ENGINE_LABEL,
+  RichText,
+  SEV_LABEL,
+  SnippetView,
+  extractSnippet,
+  parseDiff,
+  type DiffFile,
+  type InlineFinding
+} from './DiffView'
 
 type Sub = 'run' | 'agents' | 'prohibitions' | 'history'
 
@@ -94,33 +105,6 @@ function UsageBadges({ usage, big }: { usage: TokenUsage; big?: boolean }): JSX.
         {usage.calls} вызов(ов)
       </span>
     </div>
-  )
-}
-
-/** Flat list of one reviewer's findings (used by the «Списком» view; GitLab view renders inline). */
-function StepFindings({ step }: { step: HarnessStepResult }): JSX.Element | null {
-  if (step.findings.length === 0) return null
-  return (
-    <>
-      {step.findings.map((f, i) => (
-        <div className={`hv-finding hv-sev-${f.severity}`} key={i}>
-          <div className="hv-finding__head">
-            <span className="hv-finding__sev">{SEV_LABEL[f.severity]}</span>
-            <b>{f.title}</b>
-            {f.file && (
-              <span className="hv-finding__loc">
-                {f.file}
-                {f.line ? `:${f.line}` : ''}
-              </span>
-            )}
-          </div>
-          <div className="hv-finding__detail">
-            <RichText text={f.detail} />
-          </div>
-          {f.suggestion && <div className="hv-finding__sug">💡 {f.suggestion}</div>}
-        </div>
-      ))}
-    </>
   )
 }
 
@@ -502,7 +486,125 @@ function RunTab(props: {
   )
 }
 
-// ---------------- Shared run results (GitLab-style diff / list) ----------------
+/** Filename from a path, for a compact location label. */
+function baseName(p: string): string {
+  const i = Math.max(p.lastIndexOf('/'), p.lastIndexOf('\\'))
+  return i >= 0 ? p.slice(i + 1) : p
+}
+
+/** One finding as a collapsible row: header = severity + line + title; body = code snippet,
+ *  why (detail) and the proposed fix (suggestion). Expanded on demand to stay compact. */
+function FindingItem({
+  finding,
+  files
+}: {
+  finding: ReviewFinding
+  files: DiffFile[]
+}): JSX.Element {
+  const snippet = extractSnippet(files, finding.file, finding.line)
+  const loc = finding.line
+    ? `строка ${finding.line}`
+    : finding.file
+      ? baseName(finding.file)
+      : 'общее'
+  return (
+    <details className={`hv-fi hv-sev-${finding.severity}`}>
+      <summary className="hv-fi__sum">
+        <span className="hv-fi__sev">{SEV_LABEL[finding.severity]}</span>
+        <span className="hv-fi__loc">{loc}</span>
+        <span className="hv-fi__title">{finding.title}</span>
+      </summary>
+      <div className="hv-fi__body">
+        {snippet ? (
+          <div className="hv-fi__block">
+            <div className="hv-fi__label">{snippet.path}</div>
+            <SnippetView lines={snippet.lines} />
+          </div>
+        ) : (
+          finding.file && (
+            <div className="hv-fi__label">
+              {finding.file}
+              {finding.line ? `:${finding.line}` : ''}
+            </div>
+          )
+        )}
+        <div className="hv-fi__block">
+          <div className="hv-fi__label">Почему</div>
+          <div className="hv-fi__text">
+            <RichText text={finding.detail} />
+          </div>
+        </div>
+        {finding.suggestion && (
+          <div className="hv-fi__block hv-fi__fix">
+            <div className="hv-fi__label">✅ Как исправить</div>
+            <div className="hv-fi__text">
+              <RichText text={finding.suggestion} />
+            </div>
+          </div>
+        )}
+      </div>
+    </details>
+  )
+}
+
+/** One reviewer as a collapsible panel: header shows status/count/engine; body holds the
+ *  reviewer's summary and its findings (each its own dropdown), plus token usage. */
+function ReviewerPanel({
+  step,
+  files,
+  log
+}: {
+  step: HarnessStepResult
+  files: DiffFile[]
+  log?: string
+}): JSX.Element {
+  const done = step.status === 'done'
+  const statusText =
+    step.status === 'running'
+      ? 'идёт…'
+      : step.status === 'error'
+        ? 'ошибка'
+        : step.status === 'cancelled'
+          ? 'отменён'
+          : step.findings.length
+            ? `${step.findings.length} замеч.`
+            : 'без замечаний'
+  return (
+    <details className="hv-rp" open={done}>
+      <summary className="hv-rp__sum">
+        <span className="hv-rp__caret" />
+        <b>{step.agentName}</b>
+        <span className="hv-step__engine">{ENGINE_LABEL[step.engine]}</span>
+        <span className="hv-rp__status">{statusText}</span>
+        {step.status === 'running' && (
+          <span className="hv-step__live">
+            <span className="spinner" />
+            <span className="hv-step__elapsed">{fmtElapsedFrom(step.startedAt)}</span>
+            {log && <span className="hint">{log}</span>}
+          </span>
+        )}
+      </summary>
+      <div className="hv-rp__body">
+        {step.status === 'error' && <div className="status-msg err">{step.error}</div>}
+        {step.summary && (
+          <div className="hv-summary">
+            <RichText text={step.summary} />
+          </div>
+        )}
+        {done && step.findings.length > 0 && (
+          <div className="hv-fi-list">
+            {step.findings.map((f, i) => (
+              <FindingItem key={i} finding={f} files={files} />
+            ))}
+          </div>
+        )}
+        {step.usage && <UsageBadges usage={step.usage} />}
+      </div>
+    </details>
+  )
+}
+
+// ---------------- Shared run results (reviewer/finding dropdowns · GitLab diff) ----------------
 /** Collect every finding across the run's steps, tagged with its reviewer + engine. */
 function collectFindings(run: HarnessRun): InlineFinding[] {
   return run.steps.flatMap((s) =>
@@ -511,13 +613,13 @@ function collectFindings(run: HarnessRun): InlineFinding[] {
 }
 
 /**
- * The results of a run, shared by the live Запуск view and the История detail. Shows the run-total
- * token banner, a per-reviewer header (status/summary/usage, live elapsed while running), and the
- * findings either GitLab-style — the reviewed code with inline comments on the lines — or as a flat
- * list. Defaults to the GitLab view whenever the diff is available.
+ * The results of a run, shared by the live Запуск view and the История detail. Two views:
+ *  - «Замечания» (default): each reviewer is a dropdown; inside, each finding is its own dropdown
+ *    (header = line + title) opening to a focused code snippet, the why, and the proposed fix.
+ *  - «Как в GitLab»: the full reviewed diff with findings as inline comments on their lines.
  */
 function RunResults({ run, logs }: { run: HarnessRun; logs?: Record<string, string> }): JSX.Element {
-  const [view, setView] = useState<'gitlab' | 'list'>('gitlab')
+  const [view, setView] = useState<'findings' | 'gitlab'>('findings')
 
   // Re-render each second while the run is in progress so the per-step elapsed timers tick.
   const [, tick] = useState(0)
@@ -528,8 +630,8 @@ function RunResults({ run, logs }: { run: HarnessRun; logs?: Record<string, stri
     return () => clearInterval(id)
   }, [runningNow])
 
+  const files = useMemo(() => parseDiff(run.diff ?? ''), [run.diff])
   const total = sumUsage(run.steps)
-  const findings = collectFindings(run)
   const hasDiff = Boolean(run.diff && run.diff.trim())
   const showGitlab = view === 'gitlab' && hasDiff
 
@@ -542,49 +644,24 @@ function RunResults({ run, logs }: { run: HarnessRun; logs?: Record<string, stri
         </div>
       )}
 
-      {/* per-reviewer status + summary + usage (the "who said what" header) */}
-      {run.steps.map((step) => (
-        <div className="hv-step" key={step.stepId}>
-          <div className="hv-step__head">
-            <b>{step.agentName}</b>
-            <span className="hv-step__engine">{ENGINE_LABEL[step.engine]}</span>
-            {step.status === 'done' && (
-              <span className="hv-step__count">
-                {step.findings.length ? `${step.findings.length} замеч.` : 'без замечаний'}
-              </span>
-            )}
-            {step.status === 'running' && (
-              <span className="hv-step__live">
-                <span className="spinner" />
-                <span className="hv-step__elapsed">{fmtElapsedFrom(step.startedAt)}</span>
-                {logs?.[step.stepId] && <span className="hint">{logs[step.stepId]}</span>}
-              </span>
-            )}
-          </div>
-          {step.status === 'error' && <div className="status-msg err">{step.error}</div>}
-          {step.summary && (
-            <div className="hv-summary">
-              <RichText text={step.summary} />
-            </div>
-          )}
-          {/* in list view, show this reviewer's findings here; in gitlab view they go inline below */}
-          {!showGitlab && step.status === 'done' && <StepFindings step={step} />}
-          {step.usage && <UsageBadges usage={step.usage} />}
-        </div>
-      ))}
-
       {hasDiff && (
         <div className="hv-viewtabs">
+          <button className={!showGitlab ? 'is-active' : ''} onClick={() => setView('findings')}>
+            Замечания
+          </button>
           <button className={showGitlab ? 'is-active' : ''} onClick={() => setView('gitlab')}>
             Как в GitLab
-          </button>
-          <button className={!showGitlab ? 'is-active' : ''} onClick={() => setView('list')}>
-            Списком
           </button>
         </div>
       )}
 
-      {showGitlab && <DiffView diff={run.diff as string} findings={findings} />}
+      {showGitlab ? (
+        <DiffView diff={run.diff as string} findings={collectFindings(run)} />
+      ) : (
+        run.steps.map((step) => (
+          <ReviewerPanel key={step.stepId} step={step} files={files} log={logs?.[step.stepId]} />
+        ))
+      )}
     </div>
   )
 }
