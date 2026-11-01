@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { homedir } from 'node:os'
 import { getClaudeCliPath } from '../store'
 import { getAnthropicApiKey } from '../../store/credentials'
+import type { TokenUsage } from '@shared/types'
 
 /**
  * Thin wrapper around the user's installed `claude` CLI. We deliberately do NOT handle the
@@ -43,6 +44,8 @@ export interface ClaudePrintResult {
   result: string
   isError: boolean
   sessionId?: string
+  /** token usage + USD cost reported by the CLI's JSON result */
+  usage?: TokenUsage
 }
 
 /** Run `claude -p --output-format json`, feeding the prompt over stdin. */
@@ -111,14 +114,46 @@ function parsePrintJson(stdout: string): ClaudePrintResult | null {
       is_error?: boolean
       subtype?: string
       session_id?: string
+      total_cost_usd?: number
+      usage?: {
+        input_tokens?: number
+        output_tokens?: number
+        cache_creation_input_tokens?: number
+        cache_read_input_tokens?: number
+      }
     }
     return {
       result: String(obj.result ?? ''),
       isError: Boolean(obj.is_error) || obj.subtype === 'error_during_execution',
-      sessionId: obj.session_id
+      sessionId: obj.session_id,
+      usage: toTokenUsage(obj.usage, obj.total_cost_usd)
     }
   } catch {
     return null
+  }
+}
+
+/** Map the CLI's `usage`/`total_cost_usd` into our TokenUsage; undefined if nothing is reported. */
+function toTokenUsage(
+  u: {
+    input_tokens?: number
+    output_tokens?: number
+    cache_creation_input_tokens?: number
+    cache_read_input_tokens?: number
+  } | undefined,
+  costUsd?: number
+): TokenUsage | undefined {
+  if (!u && costUsd === undefined) return undefined
+  const input = u?.input_tokens ?? 0
+  const output = u?.output_tokens ?? 0
+  return {
+    inputTokens: input,
+    outputTokens: output,
+    cacheReadTokens: u?.cache_read_input_tokens ?? 0,
+    cacheCreationTokens: u?.cache_creation_input_tokens ?? 0,
+    totalTokens: input + output,
+    costUsd: typeof costUsd === 'number' ? costUsd : undefined,
+    calls: 1
   }
 }
 

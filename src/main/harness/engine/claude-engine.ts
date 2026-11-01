@@ -1,5 +1,5 @@
 import { runClaudePrint } from './claude-cli'
-import type { ReviewEngine, ReviewRequest } from './types'
+import type { ChatResult, ReviewEngine, ReviewRequest } from './types'
 
 // Review can involve reading several files — give the agent room, but keep a hard ceiling.
 const CLAUDE_REVIEW_TIMEOUT_MS = 240_000
@@ -11,7 +11,7 @@ const CLAUDE_REVIEW_TIMEOUT_MS = 240_000
  * One raw completion; the shared executeReview() handles prompts, parsing and the repair pass.
  */
 export const claudeEngine: ReviewEngine = {
-  async chat(system: string, user: string, req: ReviewRequest): Promise<string> {
+  async chat(system: string, user: string, req: ReviewRequest): Promise<ChatResult> {
     const readOnly = ['Read', 'Grep', 'Glob']
     req.onLog('Claude обрабатывает запрос…')
     const res = await runClaudePrint({
@@ -28,6 +28,6 @@ export const claudeEngine: ReviewEngine = {
     if (res.isError && !res.result.trim()) {
       throw new Error('Claude вернул ошибку выполнения (пустой результат)')
     }
-    return res.result
+    return { text: res.result, usage: res.usage }
   }
 }

@@ -1,5 +1,5 @@
-import { coderChat } from '../../llm/client'
-import type { ReviewEngine, ReviewRequest } from './types'
+import { coderChatWithUsage } from '../../llm/client'
+import type { ChatResult, ReviewEngine, ReviewRequest } from './types'
 
 /**
  * Review on the local model (OpenAI-compatible / LM Studio), via the existing coder profile.
@@ -8,11 +8,12 @@ import type { ReviewEngine, ReviewRequest } from './types'
  * enforced at the prompt level — there is no tool execution here to hook.
  */
 export const localEngine: ReviewEngine = {
-  async chat(system: string, user: string, req: ReviewRequest): Promise<string> {
+  async chat(system: string, user: string, req: ReviewRequest): Promise<ChatResult> {
     req.onLog('Отправляю запрос локальной модели…')
-    return coderChat([
+    const { content, usage } = await coderChatWithUsage([
       { role: 'system', content: system },
       { role: 'user', content: user }
     ])
+    return { text: content, usage }
   }
 }

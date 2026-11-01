@@ -1,4 +1,4 @@
-import type { HarnessAgent, ReviewFinding } from '@shared/types'
+import type { HarnessAgent, ReviewFinding, TokenUsage } from '@shared/types'
 
 /** Everything a review step needs, engine-agnostic. */
 export interface ReviewRequest {
@@ -20,13 +20,22 @@ export interface ReviewRequest {
 export interface ReviewResult {
   summary: string
   findings: ReviewFinding[]
+  /** combined token usage across every model call executeReview() made for this step */
+  usage?: TokenUsage
+}
+
+/** One completion's text plus whatever token accounting the engine could report. */
+export interface ChatResult {
+  text: string
+  usage?: TokenUsage
 }
 
 /**
  * A pluggable backend reduced to one primitive: a single completion. The review logic
  * (prompt building, parsing, repair pass) lives in executeReview() on top of this, so both
- * engines share it and the orchestrator/UI never know which engine runs inside.
+ * engines share it and the orchestrator/UI never know which engine runs inside. Each call
+ * reports its own token usage so executeReview can sum it across the review + repair passes.
  */
 export interface ReviewEngine {
-  chat(system: string, user: string, req: ReviewRequest): Promise<string>
+  chat(system: string, user: string, req: ReviewRequest): Promise<ChatResult>
 }
