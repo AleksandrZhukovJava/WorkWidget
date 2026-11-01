@@ -1004,6 +1004,18 @@ body {
   gap: 8px;
   align-items: center;
   margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+.hv-step__live {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+}
+.hv-step__elapsed {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  opacity: 0.85;
 }
 .hv-summary {
   font-size: 12px;

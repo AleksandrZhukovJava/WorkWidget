@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import { homedir } from 'node:os'
 import { getClaudeCliPath } from '../store'
 import { getAnthropicApiKey } from '../../store/credentials'
@@ -48,9 +48,60 @@ export interface ClaudePrintResult {
   usage?: TokenUsage
 }
 
-/** Run `claude -p --output-format json`, feeding the prompt over stdin. */
+/** One NDJSON event from `claude --output-format stream-json` (only the fields we read). */
+interface StreamEvent {
+  type?: string
+  subtype?: string
+  model?: string
+  result?: string
+  is_error?: boolean
+  session_id?: string
+  total_cost_usd?: number
+  usage?: {
+    input_tokens?: number
+    output_tokens?: number
+    cache_creation_input_tokens?: number
+    cache_read_input_tokens?: number
+  }
+  message?: {
+    content?: { type?: string; text?: string; name?: string; input?: Record<string, unknown> }[]
+  }
+}
+
+/** Human-readable elapsed time: "45с" or "2:07". */
+function fmtElapsed(totalSec: number): string {
+  const m = Math.floor(totalSec / 60)
+  const s = totalSec % 60
+  return m > 0 ? `${m}:${String(s).padStart(2, '0')}` : `${s}с`
+}
+
+/** Short Russian description of a tool call for the live transcript. */
+function describeTool(name?: string, input?: Record<string, unknown>): string {
+  const n = name ?? 'инструмент'
+  const path = typeof input?.file_path === 'string' ? input.file_path : undefined
+  const pattern = typeof input?.pattern === 'string' ? input.pattern : undefined
+  if (n === 'Read' && path) return `🔍 читает ${basename(path)}`
+  if (n === 'Grep' && pattern) return `🔍 ищет «${pattern.slice(0, 40)}»`
+  if (n === 'Glob' && pattern) return `🔍 ищет файлы ${pattern.slice(0, 40)}`
+  return `🔧 ${n}…`
+}
+
+/**
+ * Run the user's `claude` CLI, streaming its progress. Uses `--output-format stream-json`
+ * (NDJSON — one event per line) so the live transcript can show what the agent is doing
+ * (which files it reads, when it starts writing) plus a periodic elapsed-time heartbeat,
+ * instead of a silent multi-minute wait. The final text/usage comes from the `result` event;
+ * if streaming events never arrive we fall back to parsing the whole stdout as one JSON blob.
+ */
 export function runClaudePrint(opts: RunOpts): Promise<ClaudePrintResult> {
-  const args = ['-p', '--output-format', 'json', '--append-system-prompt', opts.system]
+  const args = [
+    '-p',
+    '--output-format',
+    'stream-json',
+    '--verbose', // required by the CLI for stream-json in print mode
+    '--append-system-prompt',
+    opts.system
+  ]
   if (opts.model?.trim()) args.push('--model', opts.model.trim())
   if (opts.cwd) args.push('--add-dir', opts.cwd)
   if (opts.allowedTools?.length) args.push('--allowedTools', opts.allowedTools.join(','))
@@ -65,21 +116,79 @@ export function runClaudePrint(opts: RunOpts): Promise<ClaudePrintResult> {
     })
     let stdout = ''
     let stderr = ''
+    let lineBuf = ''
+    let final: ClaudePrintResult | null = null
+    let toolCount = 0
+    const startedAt = Date.now()
+    const elapsedSec = (): number => Math.round((Date.now() - startedAt) / 1000)
+
+    // Heartbeat: even between CLI events (a long model turn emits nothing), keep the UI alive
+    // with "работает · M:SS" so the user can tell it's progressing, not hung.
+    const heartbeat = setInterval(() => {
+      const extra = toolCount > 0 ? ` · прочитано файлов: ${toolCount}` : ''
+      opts.onLog(`Claude работает · ${fmtElapsed(elapsedSec())}${extra}`)
+    }, 5000)
+
+    const cleanup = (): void => {
+      clearTimeout(timer)
+      clearInterval(heartbeat)
+      opts.signal.removeEventListener('abort', onAbort)
+    }
     const timer = setTimeout(() => {
       child.kill()
+      cleanup()
       reject(new Error(`Claude CLI не ответил за ${Math.round(opts.timeoutMs / 1000)}с`))
     }, opts.timeoutMs)
     const onAbort = (): void => {
       child.kill()
+      cleanup()
       reject(new Error('Отменено'))
     }
     opts.signal.addEventListener('abort', onAbort, { once: true })
 
-    child.stdout.on('data', (d) => (stdout += d.toString()))
+    const handleLine = (line: string): void => {
+      const t = line.trim()
+      if (!t) return
+      let ev: StreamEvent
+      try {
+        ev = JSON.parse(t) as StreamEvent
+      } catch {
+        return // non-JSON noise — ignore
+      }
+      if (ev.type === 'system' && ev.subtype === 'init') {
+        opts.onLog(`Claude на связи${ev.model ? ` · ${ev.model}` : ''}`)
+      } else if (ev.type === 'assistant' && ev.message) {
+        for (const block of ev.message.content ?? []) {
+          if (block.type === 'tool_use') {
+            toolCount++
+            opts.onLog(describeTool(block.name, block.input))
+          } else if (block.type === 'text' && block.text?.trim()) {
+            opts.onLog('✍ формулирует ответ…')
+          }
+        }
+      } else if (ev.type === 'result') {
+        final = {
+          result: String(ev.result ?? ''),
+          isError: Boolean(ev.is_error) || ev.subtype === 'error_during_execution',
+          sessionId: ev.session_id,
+          usage: toTokenUsage(ev.usage, ev.total_cost_usd)
+        }
+      }
+    }
+
+    child.stdout.on('data', (d) => {
+      const chunk = d.toString()
+      stdout += chunk
+      lineBuf += chunk
+      let nl: number
+      while ((nl = lineBuf.indexOf('\n')) >= 0) {
+        handleLine(lineBuf.slice(0, nl))
+        lineBuf = lineBuf.slice(nl + 1)
+      }
+    })
     child.stderr.on('data', (d) => (stderr += d.toString()))
     child.on('error', (err) => {
-      clearTimeout(timer)
-      opts.signal.removeEventListener('abort', onAbort)
+      cleanup()
       reject(
         new Error(
           `Не удалось запустить claude CLI (${err.message}). Установлен ли Claude Code и в PATH?`
@@ -87,14 +196,14 @@ export function runClaudePrint(opts: RunOpts): Promise<ClaudePrintResult> {
       )
     })
     child.on('close', (code) => {
-      clearTimeout(timer)
-      opts.signal.removeEventListener('abort', onAbort)
+      cleanup()
       if (opts.signal.aborted) return
-      const parsed = parsePrintJson(stdout)
+      if (lineBuf.trim()) handleLine(lineBuf) // flush a trailing partial line
+      const parsed = final ?? parsePrintJson(stdout)
       if (parsed) return resolve(parsed)
       reject(
         new Error(
-          `Claude CLI завершился (код ${code}) без валидного JSON. ${stderr.slice(0, 500) || stdout.slice(0, 500)}`
+          `Claude CLI завершился (код ${code}) без валидного результата. ${stderr.slice(0, 500) || stdout.slice(0, 500)}`
         )
       )
     })
