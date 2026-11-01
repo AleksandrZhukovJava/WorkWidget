@@ -983,8 +983,19 @@ body {
 }
 .hv-summary {
   font-size: 12px;
-  opacity: 0.85;
+  opacity: 0.9;
   margin-bottom: 6px;
+}
+.hv-rich {
+  font-size: 12px;
+  line-height: 1.5;
+  word-break: break-word;
+}
+.hv-rich__line {
+  min-height: 1px;
+}
+.hv-rich__line:empty {
+  height: 0.6em;
 }
 .hv-finding {
   border-left: 3px solid var(--border, rgba(255, 255, 255, 0.2));
