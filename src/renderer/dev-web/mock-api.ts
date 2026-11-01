@@ -427,6 +427,42 @@ let harnessProhibitions: Prohibition[] = [
   { id: 'no-force-push', text: 'Никогда git push --force.', enabled: true, builtin: true },
   { id: 'no-secrets', text: 'Не читать/править секреты (.env, ключи).', enabled: true, builtin: true }
 ]
+// A small but realistic unified diff so the GitLab-style viewer has code to render; the mock
+// reviewer-1 findings point at src/service.ts:42 and :71, which land on lines in these hunks.
+const MOCK_DIFF = [
+  'diff --git a/src/service.ts b/src/service.ts',
+  '--- a/src/service.ts',
+  '+++ b/src/service.ts',
+  '@@ -38,8 +38,10 @@ export class PaymentService {',
+  '   async sync(items: Payment[]) {',
+  '     const logger = this.logger',
+  '-    const first = items[0]',
+  '+    const first = items[0] // TODO: что если items пуст?',
+  '+    const n = items.length',
+  '     await this.db.begin()',
+  '     for (const it of items) {',
+  '       await this.process(it)',
+  '     }',
+  '@@ -67,6 +69,8 @@ export class PaymentService {',
+  '   private tick() {',
+  '     this.counter = this.counter + 1',
+  '+    // инкремент без блокировки',
+  '+    this.flush(this.counter)',
+  '   }',
+  ' }',
+  'diff --git a/k8s/values.yaml b/k8s/values.yaml',
+  '--- a/k8s/values.yaml',
+  '+++ b/k8s/values.yaml',
+  '@@ -12,7 +12,7 @@ clickhouse:',
+  '   prod:',
+  '-    host: 10.0.4.17',
+  '+    host: clickhouse.internal.svc.cluster.local',
+  '   staging:',
+  '-    host: 10.0.4.18',
+  '+    host: clickhouse.internal.svc.cluster.local',
+  ''
+].join('\n')
+
 let harnessRuns: HarnessRun[] = []
 const harnessSubs = new Set<(ev: HarnessRunEvent) => void>()
 function emitHarness(ev: HarnessRunEvent): void {
@@ -448,9 +484,10 @@ function simulateRun(source: HarnessSource, agentIds: string[]): void {
       startedAt
     }
   })
-  const run: HarnessRun = { id: runId, source, startedAt, status: 'running', steps }
+  const run: HarnessRun = { id: runId, source, startedAt, status: 'running', steps, diff: MOCK_DIFF }
   harnessRuns = [run, ...harnessRuns]
   emitHarness({ runId, kind: 'run-start', run })
+  setTimeout(() => emitHarness({ runId, kind: 'diff', diff: MOCK_DIFF }), 200)
   steps.forEach((step, i) => {
     emitHarness({ runId, kind: 'step-start', stepId: step.stepId })
     setTimeout(() => emitHarness({ runId, kind: 'log', stepId: step.stepId, text: 'анализирую дифф…' }), 300)

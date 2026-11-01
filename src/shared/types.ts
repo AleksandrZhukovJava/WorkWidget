@@ -725,11 +725,15 @@ export interface HarnessRun {
   finishedAt?: string
   status: HarnessRunStatus
   steps: HarnessStepResult[]
+  /** the reviewed unified diff, so the UI can render a GitLab-style code view with inline
+   *  findings; stored (capped) for history. Absent until the diff has been collected. */
+  diff?: string
 }
 
 /** Streamed from main → renderer over the harnessRunEvent channel while a run executes. */
 export type HarnessRunEvent =
   | { runId: string; kind: 'run-start'; run: HarnessRun }
+  | { runId: string; kind: 'diff'; diff: string }
   | { runId: string; kind: 'step-start'; stepId: string }
   | { runId: string; kind: 'log'; stepId: string; text: string }
   | { runId: string; kind: 'step-done'; step: HarnessStepResult }
