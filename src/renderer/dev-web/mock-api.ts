@@ -958,8 +958,12 @@ TimeoutException: payment gateway did not respond
   harnessListAgents: async () => harnessAgents,
   harnessSaveAgent: async (agent: HarnessAgent) => {
     const idx = harnessAgents.findIndex((a) => a.id === agent.id)
-    if (agent.id && idx >= 0) harnessAgents[idx] = { ...harnessAgents[idx], ...agent }
-    else harnessAgents = [...harnessAgents, { ...agent, id: agent.id || `agent-${Date.now()}` }]
+    // Return a NEW array (as real IPC does via structured-clone) so React re-renders.
+    if (agent.id && idx >= 0) {
+      harnessAgents = harnessAgents.map((a, i) => (i === idx ? { ...a, ...agent } : a))
+    } else {
+      harnessAgents = [...harnessAgents, { ...agent, id: agent.id || `agent-${Date.now()}` }]
+    }
     return harnessAgents
   },
   harnessDeleteAgent: async (id: string) => {

@@ -641,6 +641,8 @@ export interface HarnessAgent {
   disallowedTools: string[]
   /** seeded default — editable, but never deletable */
   builtin?: boolean
+  /** pinned reviewers sort to the top of the picker */
+  pinned?: boolean
 }
 
 /** A hard rule agents must never break. Builtin ones are locked (can't be disabled or deleted). */
