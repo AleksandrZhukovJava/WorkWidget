@@ -1309,6 +1309,95 @@ body {
 .dv-row.dv-target.dv-del {
   background: rgba(224, 82, 96, 0.22);
 }
+/* severity-tinted left bar on the problem line (the "в чём проблема" highlight) */
+.dv-row.dv-target--critical {
+  box-shadow: inset 3px 0 0 var(--breach, #e05260);
+}
+.dv-row.dv-target--major {
+  box-shadow: inset 3px 0 0 #e0894a;
+}
+.dv-row.dv-target--minor {
+  box-shadow: inset 3px 0 0 #e0c24a;
+}
+.dv-row.dv-target--praise {
+  box-shadow: inset 3px 0 0 var(--ok, #4caf50);
+}
+.dv-target__mark {
+  margin-left: 6px;
+  font-size: 10px;
+  opacity: 0.7;
+  user-select: none;
+}
+
+/* --- per-finding discussion cards (GitLab view) --- */
+.dv-file__count {
+  margin-left: auto;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.16));
+  opacity: 0.8;
+}
+.dv-discussions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+}
+.dv-disc {
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.14));
+  border-left: 3px solid var(--border, rgba(255, 255, 255, 0.25));
+  border-radius: 8px;
+  overflow: hidden;
+}
+.dv-disc.dv-sev-critical {
+  border-left-color: var(--breach, #e05260);
+}
+.dv-disc.dv-sev-major {
+  border-left-color: #e0894a;
+}
+.dv-disc.dv-sev-minor {
+  border-left-color: #e0c24a;
+}
+.dv-disc.dv-sev-praise {
+  border-left-color: var(--ok, #4caf50);
+}
+/* the snippet sits flush at the top of the card, the comment attached directly beneath it */
+.dv-disc .dv-snippet {
+  border: none;
+  border-radius: 0;
+  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+}
+.dv-disc .dv-comment {
+  margin: 0;
+  border: none;
+  border-left: none;
+  border-radius: 0;
+  background: transparent;
+}
+.dv-disc__noline {
+  font-size: 11px;
+  opacity: 0.55;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+}
+.dv-comment__loc {
+  font-family: ui-monospace, "Cascadia Code", "Consolas", monospace;
+  font-size: 10px;
+  opacity: 0.6;
+}
+.dv-comment__label {
+  display: block;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.55;
+  margin-bottom: 2px;
+}
+.dv-comment__sug {
+  border-left: 2px solid var(--ok, #4caf50);
+  padding-left: 8px;
+}
 
 /* --- reviewer dropdown --- */
 .hv-rp {
