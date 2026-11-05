@@ -4,6 +4,7 @@ import {
   buildRepairSystemPrompt,
   buildRepairUserPrompt,
   parseReview,
+  parseMarkdownReview,
   hasSalvageableText,
   stripThink
 } from './review-prompt'
@@ -25,17 +26,25 @@ export async function executeReview(engine: ReviewEngine, req: ReviewRequest): P
   const parsed = parseReview(first.text)
   if (parsed.findings.length > 0) return { ...parsed, usage }
 
-  // No structured findings. Try to salvage a prose answer into findings (one extra call).
+  // No JSON findings — try to extract them from a markdown-style review without another model call.
+  const md = parseMarkdownReview(first.text)
+  if (md.findings.length > 0) {
+    return { summary: md.summary || parsed.summary || cleanSummary(first.text), findings: md.findings, usage }
+  }
+
+  // Still nothing structured. Ask the same engine to restructure its own answer (one extra call).
   if (hasSalvageableText(first.text) && !req.signal.aborted) {
     req.onLog('Переформатирую ответ в структуру…')
     try {
       const repaired = await engine.chat(buildRepairSystemPrompt(), buildRepairUserPrompt(first.text), req)
       const usage2 = addUsage(usage, repaired.usage)
+      // Prefer JSON from the repair; else try markdown on the repaired text too.
       const p2 = parseReview(repaired.text)
-      if (p2.findings.length > 0) {
+      const r2 = p2.findings.length > 0 ? p2 : parseMarkdownReview(repaired.text)
+      if (r2.findings.length > 0) {
         return {
-          summary: p2.summary || parsed.summary || cleanSummary(first.text),
-          findings: p2.findings,
+          summary: r2.summary || parsed.summary || cleanSummary(first.text),
+          findings: r2.findings,
           usage: usage2
         }
       }
