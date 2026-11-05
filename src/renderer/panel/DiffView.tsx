@@ -198,84 +198,102 @@ export function extractSnippet(
   return { path: file.newPath || file.oldPath, lines }
 }
 
-/** Render an extracted snippet in the diff style, with the finding's line highlighted. */
-export function SnippetView({ lines }: { lines: SnippetLine[] }): JSX.Element {
+/** Render an extracted snippet in the diff style, with the finding's line highlighted (tinted by
+ *  severity when given, so it's visually obvious where the problem is). */
+export function SnippetView({
+  lines,
+  severity
+}: {
+  lines: SnippetLine[]
+  severity?: ReviewFinding['severity']
+}): JSX.Element {
   return (
     <div className="dv-code-block dv-snippet">
-      {lines.map((l, i) => (
-        <div className={`dv-row dv-${l.kind}${l.target ? ' dv-target' : ''}`} key={i}>
-          <span className="dv-gutter dv-gutter--old">
-            {l.kind === 'add' ? '' : (l.oldNo ?? '')}
-          </span>
-          <span className="dv-gutter dv-gutter--new">
-            {l.kind === 'del' ? '' : (l.newNo ?? '')}
-          </span>
-          <span className="dv-sign">{l.kind === 'add' ? '+' : l.kind === 'del' ? '-' : ''}</span>
-          <code className="dv-text">{l.text || ' '}</code>
-        </div>
-      ))}
+      {lines.map((l, i) => {
+        const targetCls = l.target ? ` dv-target${severity ? ` dv-target--${severity}` : ''}` : ''
+        return (
+          <div className={`dv-row dv-${l.kind}${targetCls}`} key={i}>
+            <span className="dv-gutter dv-gutter--old">
+              {l.kind === 'add' ? '' : (l.oldNo ?? '')}
+            </span>
+            <span className="dv-gutter dv-gutter--new">
+              {l.kind === 'del' ? '' : (l.newNo ?? '')}
+            </span>
+            <span className="dv-sign">{l.kind === 'add' ? '+' : l.kind === 'del' ? '-' : ''}</span>
+            <code className="dv-text">{l.text || ' '}</code>
+            {l.target && (
+              <span className="dv-target__mark" title="здесь проблема">
+                ◀
+              </span>
+            )}
+          </div>
+        )
+      })}
     </div>
   )
 }
 
-function Comment({ f }: { f: InlineFinding }): JSX.Element {
+function Comment({ f, loc }: { f: InlineFinding; loc?: string }): JSX.Element {
   return (
     <div className={`dv-comment dv-sev-${f.severity}`}>
       <div className="dv-comment__head">
         <span className="dv-comment__sev">{SEV_LABEL[f.severity]}</span>
         <b>{f.title}</b>
+        {loc && <span className="dv-comment__loc">{loc}</span>}
         <span className="dv-comment__by">
           {f.reviewer} · {ENGINE_LABEL[f.engine]}
         </span>
       </div>
       {f.detail && (
         <div className="dv-comment__detail">
+          <span className="dv-comment__label">Проблема</span>
           <RichText text={f.detail} />
         </div>
       )}
-      {f.suggestion && <div className="dv-comment__sug">💡 {f.suggestion}</div>}
+      {f.suggestion && (
+        <div className="dv-comment__sug">
+          <span className="dv-comment__label">✅ Как исправить</span>
+          <RichText text={f.suggestion} />
+        </div>
+      )}
     </div>
   )
 }
 
 /**
- * GitLab-style rendering of a reviewed diff: per-file code with old/new line-number gutters and
- * +/- coloring, with each finding shown as an inline comment anchored to its line. Findings whose
- * file isn't in the diff (or whose line can't be located) are listed separately so nothing is lost.
+ * GitLab-style review output: instead of dumping the whole diff, each finding gets its OWN focused
+ * code fragment (the lines around it, with the problem line highlighted and tinted by severity)
+ * followed by the comment — exactly like a GitLab MR discussion anchored to a line. Findings are
+ * grouped by file; ones without a locatable line show the comment alone, and ones whose file isn't
+ * in the diff go to a trailing block so nothing is lost. Only fragments with findings are shown.
  */
 export function DiffView({ diff, findings }: { diff: string; findings: InlineFinding[] }): JSX.Element {
   const files = useMemo(() => parseDiff(diff), [diff])
 
-  // Place each finding: onto a specific line, onto a file (no line match), or unplaced.
-  const { byLine, byFile, unplaced } = useMemo(() => {
-    const byLine = new Map<string, InlineFinding[]>() // key: fileIdx:lineIdx
-    const byFile = new Map<number, InlineFinding[]>() // key: fileIdx
+  // Group findings by the diff file they match (preserving file order); the rest are "unplaced".
+  const { groups, unplaced } = useMemo(() => {
+    const groups = new Map<number, InlineFinding[]>()
     const unplaced: InlineFinding[] = []
     for (const f of findings) {
       const fileIdx = files.findIndex((file) => fileMatches(f.file, file))
-      if (fileIdx < 0) {
-        unplaced.push(f)
-        continue
-      }
-      const lineIdx = lineIndexForFinding(files[fileIdx], f.line)
-      if (lineIdx >= 0) {
-        const key = `${fileIdx}:${lineIdx}`
-        byLine.set(key, [...(byLine.get(key) ?? []), f])
-      } else {
-        byFile.set(fileIdx, [...(byFile.get(fileIdx) ?? []), f])
-      }
+      if (fileIdx < 0) unplaced.push(f)
+      else groups.set(fileIdx, [...(groups.get(fileIdx) ?? []), f])
     }
-    return { byLine, byFile, unplaced }
+    return { groups, unplaced }
   }, [files, findings])
 
-  if (files.length === 0) {
-    return <div className="hint">Диф пуст или не распознан.</div>
+  if (findings.length === 0) {
+    return <div className="hint">Замечаний нет — ревьюверы ничего не нашли в этом диффе.</div>
   }
+
+  const fileIdxs = [...groups.keys()].sort((a, b) => a - b)
 
   return (
     <div className="dv">
-      {files.map((file, fi) => {
+      {fileIdxs.map((fi) => {
+        const file = files[fi]
         const path = file.newPath || file.oldPath
+        const items = groups.get(fi)!
         return (
           <div className="dv-file" key={fi}>
             <div className="dv-file__head">
@@ -283,46 +301,39 @@ export function DiffView({ diff, findings }: { diff: string; findings: InlineFin
               {file.isNew && <span className="dv-tag dv-tag--new">новый</span>}
               {file.isDeleted && <span className="dv-tag dv-tag--del">удалён</span>}
               {file.isRenamed && <span className="dv-tag">переименован</span>}
-              {file.oldPath && file.newPath && file.oldPath !== file.newPath && (
-                <span className="dv-file__from">← {file.oldPath}</span>
-              )}
+              <span className="dv-file__count">{items.length} замеч.</span>
             </div>
-            <div className="dv-code-block">
-              {file.lines.map((l, li) => {
-                const key = `${fi}:${li}`
-                const comments = byLine.get(key)
+            <div className="dv-discussions">
+              {items.map((f, ci) => {
+                const snip = extractSnippet(files, f.file, f.line, 4)
                 return (
-                  <div key={li}>
-                    <div className={`dv-row dv-${l.kind}`}>
-                      <span className="dv-gutter dv-gutter--old">
-                        {l.kind === 'add' || l.kind === 'hunk' ? '' : (l.oldNo ?? '')}
-                      </span>
-                      <span className="dv-gutter dv-gutter--new">
-                        {l.kind === 'del' || l.kind === 'hunk' ? '' : (l.newNo ?? '')}
-                      </span>
-                      <span className="dv-sign">
-                        {l.kind === 'add' ? '+' : l.kind === 'del' ? '-' : ''}
-                      </span>
-                      <code className="dv-text">{l.text || ' '}</code>
-                    </div>
-                    {comments?.map((f, ci) => <Comment key={ci} f={f} />)}
+                  <div className={`dv-disc dv-sev-${f.severity}`} key={ci}>
+                    {snip ? (
+                      <SnippetView lines={snip.lines} severity={f.severity} />
+                    ) : (
+                      <div className="dv-disc__noline">Без точной строки в диффе</div>
+                    )}
+                    <Comment f={f} loc={f.line ? `${path}:${f.line}` : path} />
                   </div>
                 )
               })}
             </div>
-            {byFile.get(fi) && (
-              <div className="dv-file-comments">
-                <div className="dv-file-comments__label">Замечания по файлу (без точной строки)</div>
-                {byFile.get(fi)!.map((f, ci) => <Comment key={ci} f={f} />)}
-              </div>
-            )}
           </div>
         )
       })}
       {unplaced.length > 0 && (
-        <div className="dv-file-comments">
-          <div className="dv-file-comments__label">Прочие замечания (вне диффа)</div>
-          {unplaced.map((f, ci) => <Comment key={ci} f={f} />)}
+        <div className="dv-file">
+          <div className="dv-file__head">
+            <span className="dv-file__path">Прочие замечания (вне диффа)</span>
+            <span className="dv-file__count">{unplaced.length} замеч.</span>
+          </div>
+          <div className="dv-discussions">
+            {unplaced.map((f, ci) => (
+              <div className={`dv-disc dv-sev-${f.severity}`} key={ci}>
+                <Comment f={f} loc={f.file ?? undefined} />
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>
