@@ -1329,6 +1329,64 @@ body {
   user-select: none;
 }
 
+/* --- syntax-highlighted code fragment (real file, GitLab/IDEA style) --- */
+.cs {
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+  border-radius: 6px;
+  overflow-x: auto;
+  background: var(--code-bg, rgba(0, 0, 0, 0.28));
+}
+.cs pre {
+  margin: 0 !important;
+}
+.cs code,
+.cs .cs-code {
+  font-family: 'JetBrains Mono', 'Cascadia Code', Consolas, 'SFMono-Regular', ui-monospace, monospace;
+}
+.cs .linenumber {
+  font-style: normal !important;
+}
+.cs .cs-line--target {
+  box-shadow: inset 3px 0 0 var(--accent, #7aa0ff);
+}
+/* in a GitLab-view discussion card the fragment sits flush at the top */
+.dv-disc .cs {
+  border: none;
+  border-radius: 0;
+  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+}
+
+/* deep link to the exact GitLab line */
+.gl-line-link {
+  font-size: 11px;
+  color: var(--accent, #7aa0ff);
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.gl-line-link:hover {
+  text-decoration: underline;
+}
+
+/* finding location label row: path on the left, GitLab link on the right */
+.hv-fi__label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.hv-fi__path {
+  font-family: 'JetBrains Mono', Consolas, ui-monospace, monospace;
+  font-size: 11px;
+  opacity: 0.8;
+  overflow-wrap: anywhere;
+}
+.hv-fi__label .gl-line-link {
+  margin-left: auto;
+}
+.dv-comment__head .gl-line-link {
+  margin-left: 4px;
+}
+
 /* --- per-finding discussion cards (GitLab view) --- */
 .dv-file__count {
   margin-left: auto;

@@ -3,6 +3,7 @@ import { getMrDiff } from '../gitlab/mr'
 import { runGit } from '../agent/git'
 import { getAgentById, enabledProhibitionTexts, upsertRun } from './store'
 import { engineByName, resolveEngine, executeReview } from './engine'
+import { enrichFindings } from './enrich'
 import type {
   HarnessRun,
   HarnessRunEvent,
@@ -134,6 +135,8 @@ export async function runReview(
         step.summary = result.summary
         step.findings = result.findings
         step.usage = result.usage
+        // Attach a GitLab line link + a real-file code fragment to each finding (best-effort).
+        await enrichFindings(source, diff, step.findings).catch(() => {})
         step.status = controller.signal.aborted ? 'cancelled' : 'done'
       } catch (err) {
         step.status = controller.signal.aborted ? 'cancelled' : 'error'

@@ -674,6 +674,24 @@ export interface TokenUsage {
 export type FindingSeverity = 'critical' | 'major' | 'minor' | 'nit' | 'praise'
 
 /** One review finding from an agent. */
+/**
+ * A resolved code fragment around a finding, read from the REAL file (via git show / the GitLab
+ * file API), so the UI can show syntax-highlighted code with line numbers even when the finding
+ * falls outside the collected diff. Filled by the harness after a reviewer returns its findings.
+ */
+export interface FindingSnippet {
+  /** repo-relative path the fragment was read from */
+  path: string
+  /** 1-based line number of lines[0] (so the gutter shows real file line numbers) */
+  startLine: number
+  /** raw source lines of the fragment (no diff +/- markers) */
+  lines: string[]
+  /** the finding's line, highlighted within the fragment */
+  targetLine: number
+  /** highlighter language hint derived from the file extension (e.g. 'java', 'kotlin') */
+  language?: string
+}
+
 export interface ReviewFinding {
   severity: FindingSeverity
   title: string
@@ -681,6 +699,10 @@ export interface ReviewFinding {
   file?: string
   line?: number
   suggestion?: string
+  /** code fragment around the finding, read from the real file — for a GitLab/IDEA-style view */
+  snippet?: FindingSnippet
+  /** deep link to the exact line in GitLab where the change is needed, when resolvable */
+  url?: string
 }
 
 export type HarnessRunStatus = 'running' | 'done' | 'error' | 'cancelled'
@@ -695,7 +717,8 @@ export interface HarnessSource {
   projectId?: number
   iid?: number
   webUrl?: string
-  // branch
+  // branch (for a local-branch review); `branch` is also set on an MR source to the MR's source
+  // branch, so findings can be deep-linked to the right ref in GitLab.
   repo?: string
   base?: string
   branch?: string

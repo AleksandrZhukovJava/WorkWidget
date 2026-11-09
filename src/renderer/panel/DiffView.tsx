@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import type { HarnessEngine, ReviewFinding } from '@shared/types'
+import { CodeSnippet } from './CodeSnippet'
 
 /** Severity → emoji, shared across the harness result views. */
 export const SEV_LABEL: Record<ReviewFinding['severity'], string> = {
@@ -32,6 +33,27 @@ export function RichText({ text }: { text: string }): JSX.Element {
         </div>
       ))}
     </div>
+  )
+}
+
+/**
+ * A clickable deep link to the exact line in GitLab where a finding's change is needed. Opens in the
+ * system browser (never navigates the app). Renders nothing when the finding has no resolvable URL.
+ */
+export function GitlabLink({ url }: { url?: string }): JSX.Element | null {
+  if (!url) return null
+  return (
+    <a
+      className="gl-line-link"
+      href={url}
+      title={url}
+      onClick={(e) => {
+        e.preventDefault()
+        void window.api.openInBrowser(url)
+      }}
+    >
+      Открыть в GitLab ↗
+    </a>
   )
 }
 
@@ -240,6 +262,7 @@ function Comment({ f, loc }: { f: InlineFinding; loc?: string }): JSX.Element {
         <span className="dv-comment__sev">{SEV_LABEL[f.severity]}</span>
         <b>{f.title}</b>
         {loc && <span className="dv-comment__loc">{loc}</span>}
+        <GitlabLink url={f.url} />
         <span className="dv-comment__by">
           {f.reviewer} · {ENGINE_LABEL[f.engine]}
         </span>
@@ -305,11 +328,13 @@ export function DiffView({ diff, findings }: { diff: string; findings: InlineFin
             </div>
             <div className="dv-discussions">
               {items.map((f, ci) => {
-                const snip = extractSnippet(files, f.file, f.line, 4)
+                const diffSnip = extractSnippet(files, f.file, f.line, 4)
                 return (
                   <div className={`dv-disc dv-sev-${f.severity}`} key={ci}>
-                    {snip ? (
-                      <SnippetView lines={snip.lines} severity={f.severity} />
+                    {f.snippet ? (
+                      <CodeSnippet snippet={f.snippet} severity={f.severity} />
+                    ) : diffSnip ? (
+                      <SnippetView lines={diffSnip.lines} severity={f.severity} />
                     ) : (
                       <div className="dv-disc__noline">Без точной строки в диффе</div>
                     )}
@@ -330,7 +355,8 @@ export function DiffView({ diff, findings }: { diff: string; findings: InlineFin
           <div className="dv-discussions">
             {unplaced.map((f, ci) => (
               <div className={`dv-disc dv-sev-${f.severity}`} key={ci}>
-                <Comment f={f} loc={f.file ?? undefined} />
+                {f.snippet && <CodeSnippet snippet={f.snippet} severity={f.severity} />}
+                <Comment f={f} loc={f.line ? `${f.file}:${f.line}` : (f.file ?? undefined)} />
               </div>
             ))}
           </div>

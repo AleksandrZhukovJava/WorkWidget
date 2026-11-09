@@ -500,8 +500,51 @@ function simulateRun(source: HarnessSource, agentIds: string[]): void {
         const isFirst = i === 0
         const findings: ReviewFinding[] = isFirst
           ? [
-              { severity: 'major', title: 'Необработанный краевой случай', detail: 'При пустом списке код упадёт с исключением.', file: 'src/service.ts', line: 42, suggestion: 'Добавить проверку на пустоту до обращения к [0].' },
-              { severity: 'minor', title: 'Потенциальная гонка', detail: 'Счётчик обновляется без синхронизации.', file: 'src/service.ts', line: 71 }
+              {
+                severity: 'major',
+                title: 'Необработанный краевой случай',
+                detail: 'При пустом списке код упадёт с исключением.',
+                file: 'src/service.ts',
+                line: 40,
+                suggestion: 'Добавить проверку на пустоту до обращения к [0].',
+                url: 'https://gitlab.example.com/demo/web-app/-/blob/feature/OPS-1421/src/service.ts#L40',
+                snippet: {
+                  path: 'src/service.ts',
+                  startLine: 38,
+                  targetLine: 40,
+                  language: 'typescript',
+                  lines: [
+                    '  async sync(items: Payment[]) {',
+                    '    const logger = this.logger',
+                    '    const first = items[0] // TODO: что если items пуст?',
+                    '    const n = items.length',
+                    '    await this.db.begin()',
+                    '    for (const it of items) {',
+                    '      await this.process(it)'
+                  ]
+                }
+              },
+              {
+                severity: 'minor',
+                title: 'Потенциальная гонка',
+                detail: 'Счётчик обновляется без синхронизации.',
+                file: 'src/service.ts',
+                line: 71,
+                url: 'https://gitlab.example.com/demo/web-app/-/blob/feature/OPS-1421/src/service.ts#L71',
+                snippet: {
+                  path: 'src/service.ts',
+                  startLine: 69,
+                  targetLine: 71,
+                  language: 'typescript',
+                  lines: [
+                    '  private tick() {',
+                    '    this.counter = this.counter + 1',
+                    '    // инкремент без блокировки',
+                    '    this.flush(this.counter)',
+                    '  }'
+                  ]
+                }
+              }
             ]
           : []
         const summary = isFirst

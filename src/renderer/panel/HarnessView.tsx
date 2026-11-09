@@ -15,6 +15,7 @@ import type {
 import {
   DiffView,
   ENGINE_LABEL,
+  GitlabLink,
   RichText,
   SEV_LABEL,
   SnippetView,
@@ -23,6 +24,7 @@ import {
   type DiffFile,
   type InlineFinding
 } from './DiffView'
+import { CodeSnippet } from './CodeSnippet'
 
 type Sub = 'run' | 'agents' | 'prohibitions' | 'history'
 
@@ -240,6 +242,8 @@ export function HarnessView({ gitlabEnabled }: { gitlabEnabled: boolean }): JSX.
         projectId: mr.projectId,
         iid: mr.iid,
         webUrl: mr.webUrl,
+        // carried so findings can be deep-linked to the MR's source branch in GitLab
+        branch: mr.sourceBranch,
         jiraKey: mr.jiraKey
       }
       await window.api.harnessReviewMr(source, agentIds)
@@ -569,7 +573,7 @@ function FindingItem({
   finding: ReviewFinding
   files: DiffFile[]
 }): JSX.Element {
-  const snippet = extractSnippet(files, finding.file, finding.line)
+  const diffSnippet = extractSnippet(files, finding.file, finding.line)
   const loc = finding.line
     ? `строка ${finding.line}`
     : finding.file
@@ -583,16 +587,32 @@ function FindingItem({
         <span className="hv-fi__title">{finding.title}</span>
       </summary>
       <div className="hv-fi__body">
-        {snippet ? (
+        {finding.snippet ? (
           <div className="hv-fi__block">
-            <div className="hv-fi__label">{snippet.path}</div>
-            <SnippetView lines={snippet.lines} />
+            <div className="hv-fi__label">
+              <span className="hv-fi__path">
+                {finding.snippet.path}:{finding.snippet.targetLine}
+              </span>
+              <GitlabLink url={finding.url} />
+            </div>
+            <CodeSnippet snippet={finding.snippet} severity={finding.severity} />
+          </div>
+        ) : diffSnippet ? (
+          <div className="hv-fi__block">
+            <div className="hv-fi__label">
+              <span className="hv-fi__path">{diffSnippet.path}</span>
+              <GitlabLink url={finding.url} />
+            </div>
+            <SnippetView lines={diffSnippet.lines} severity={finding.severity} />
           </div>
         ) : (
           finding.file && (
             <div className="hv-fi__label">
-              {finding.file}
-              {finding.line ? `:${finding.line}` : ''}
+              <span className="hv-fi__path">
+                {finding.file}
+                {finding.line ? `:${finding.line}` : ''}
+              </span>
+              <GitlabLink url={finding.url} />
             </div>
           )
         )}
