@@ -364,6 +364,7 @@ export type NotificationType =
   | 'token'
   | 'mr'
   | 'vpn'
+  | 'update'
 
 /** A single detected Jira event, shown in the «Уведомления» tab and (optionally) as a toast. */
 export interface NotificationEvent {
