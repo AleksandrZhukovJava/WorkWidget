@@ -174,13 +174,25 @@ function inferSeverity(text: string, def: FindingSeverity): FindingSeverity {
  * is a short run of non-digits on the same line (NB: `\w` is ASCII-only, so matching a Cyrillic
  * word like "строка" that way drops the trailing letters — a bounded non-digit gap avoids that).
  */
+// Only treat a dotted token as a file when it ends in a known source extension — otherwise a Java
+// package like `org.apache.commons.lang3` is mistaken for a file (and its trailing digits for a line).
+const SRC_EXT =
+  'java|kt|kts|ts|tsx|js|jsx|mjs|cjs|py|go|rb|rs|cpp|cxx|cc|hpp|hh|cs|php|scala|swift|vue|xml|yml|yaml|json|sql|gradle|properties|sh|html|css|scss|c|h|m'
+const FILE_GRP = `([A-Za-z0-9_./-]+\\.(?:${SRC_EXT}))(?![A-Za-z0-9])`
+
 function extractFileLine(text: string): { file?: string; line?: number } {
-  const m = text.match(/([A-Za-z0-9_./-]+\.[A-Za-z]{1,5})[^\d\n]{0,12}?(\d{1,5})/)
+  // "File.java:76" / "File.java#L76"
+  const colon = text.match(new RegExp(`${FILE_GRP}[\`'"]?\\s*[#:]l?\\s*(\\d{1,5})`, 'i'))
+  // "File.java, строка 76" / "File.java line 76" (keyword then the number; no \w, to keep Cyrillic)
+  const keyword = colon
+    ? null
+    : text.match(new RegExp(`${FILE_GRP}[\`'"]?[,\\s]{0,3}(?:строк|стр|line|ln)[^\\d\\n]{0,6}(\\d{1,5})`, 'i'))
+  const m = colon ?? keyword
   if (m) {
     const line = parseInt(m[2], 10)
     return { file: m[1], line: Number.isFinite(line) && line > 0 ? line : undefined }
   }
-  const mf = text.match(/`([A-Za-z0-9_./-]+\.[A-Za-z]{1,5})`/)
+  const mf = text.match(new RegExp(FILE_GRP, 'i'))
   return mf ? { file: mf[1] } : {}
 }
 
@@ -190,13 +202,19 @@ function blockToFinding(block: string, defaultSev: FindingSeverity): ReviewFindi
   const noFence = block.replace(/```[\s\S]*?```/g, '').trim()
   const lines = noFence
     .split('\n')
-    .map((s) => s.replace(/^[-*]\s+/, '').trim())
+    .map((s) => s.replace(/^\s*(?:[-*]\s+|\d{1,3}[.)]\s+)/, '').trim()) // strip leading bullet/number
     .filter(Boolean)
     // drop lines that are only a "File.ext, строка N:" reference — they're not the explanation
     .filter((s) => !/^[`'"]?[A-Za-z0-9_./-]+\.[A-Za-z]{1,5}[`'"]?\s*[,:]/.test(s))
   const detail = lines.join('\n').trim()
   if (detail.replace(/[`*#>]/g, '').trim().length < 8) return null
-  const title = (lines[0] ?? detail).replace(/`/g, '').replace(/\s+/g, ' ').slice(0, 80)
+  const title = (lines[0] ?? detail)
+    .replace(/`/g, '')
+    .replace(/^\s*(?:\*\*|__|#+\s*)?(?:\d{1,3}[.)]\s*)?/, '') // leading bold/heading/number marker
+    .replace(/\*\*|__/g, '') // inline bold markers
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 80)
   return {
     severity: inferSeverity(block, defaultSev),
     title: title || '(замечание)',
@@ -227,8 +245,10 @@ export function parseMarkdownReview(raw: string): ParsedReview {
     if (!block) return
     if (section === 'findings' || section === 'praise') {
       const def: FindingSeverity = section === 'praise' ? 'praise' : 'minor'
-      // split a block into separate items on top-level bullets; a plain block stays one item
-      for (const b of block.split(/\n(?=\s{0,3}[-*]\s)/)) {
+      // Split into separate items on any item marker on its own line: a bullet, a numbered item
+      // (optionally wrapped in **bold**, e.g. "**3. …**"), or a sub-heading. Models often list
+      // findings this way with no "---" between them — without this they'd merge into one.
+      for (const b of block.split(/\n(?=\s{0,3}(?:[-*]\s|(?:\*\*|__)?\d{1,3}[.)]\s|#{2,6}\s))/)) {
         const f = blockToFinding(b, def)
         if (f) findings.push(f)
       }
