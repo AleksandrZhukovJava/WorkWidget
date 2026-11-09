@@ -385,6 +385,30 @@ export async function getMrDiff(projectId: number, iid: number): Promise<string>
 }
 
 /**
+ * Raw text of a repository file at a ref (for building a code fragment around a finding). Read-only,
+ * best-effort — returns null on any error (missing file, no access, binary). Uses the JSON files API
+ * (`{ content: base64 }`) so it goes through the normal glRequest auth path.
+ */
+export async function getRepoFileText(
+  projectId: number,
+  path: string,
+  ref: string
+): Promise<string | null> {
+  try {
+    const r = await glRequest<{ content?: string; encoding?: string }>(
+      `/projects/${projectId}/repository/files/${encodeURIComponent(path)}`,
+      { query: { ref } }
+    )
+    if (r?.content && (r.encoding ?? 'base64') === 'base64') {
+      return Buffer.from(r.content, 'base64').toString('utf8')
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
+/**
  * Post a plain note (comment) on an MR. This is a review comment only — NEVER a merge, approve
  * or close action (see the [[gitlab-no-merge-forcepush]] hard rule). Called only on explicit
  * user confirmation from the UI.
