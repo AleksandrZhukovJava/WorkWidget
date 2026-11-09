@@ -24,12 +24,15 @@ export async function executeReview(engine: ReviewEngine, req: ReviewRequest): P
   const first = await engine.chat(system, user, req)
   const usage = addUsage(undefined, first.usage)
   const parsed = parseReview(first.text)
-  if (parsed.findings.length > 0) return { ...parsed, usage }
+  // When we have structured findings (the "broken-down by class" view the user wants), the summary
+  // must be ONLY a short clean verdict — never the raw JSON/markdown dump, which would show up as a
+  // duplicate blob above the cards.
+  if (parsed.findings.length > 0) return { summary: shortVerdict(parsed.summary), findings: parsed.findings, usage }
 
   // No JSON findings — try to extract them from a markdown-style review without another model call.
   const md = parseMarkdownReview(first.text)
   if (md.findings.length > 0) {
-    return { summary: md.summary || parsed.summary || cleanSummary(first.text), findings: md.findings, usage }
+    return { summary: shortVerdict(md.summary), findings: md.findings, usage }
   }
 
   // Still nothing structured. Ask the same engine to restructure its own answer (one extra call).
@@ -42,19 +45,15 @@ export async function executeReview(engine: ReviewEngine, req: ReviewRequest): P
       const p2 = parseReview(repaired.text)
       const r2 = p2.findings.length > 0 ? p2 : parseMarkdownReview(repaired.text)
       if (r2.findings.length > 0) {
-        return {
-          summary: r2.summary || parsed.summary || cleanSummary(first.text),
-          findings: r2.findings,
-          usage: usage2
-        }
+        return { summary: shortVerdict(r2.summary), findings: r2.findings, usage: usage2 }
       }
-      return { summary: parsed.summary || cleanSummary(first.text), findings: [], usage: usage2 }
+      return { summary: cleanSummary(first.text), findings: [], usage: usage2 }
     } catch {
       /* repair is best-effort — fall through to the readable prose summary below */
     }
   }
-  // Still unstructured: keep the model's text as a readable summary (UI renders line breaks).
-  return { summary: parsed.summary || cleanSummary(first.text), findings: [], usage }
+  // Still unstructured: keep the model's text as a readable (de-noised) summary.
+  return { summary: cleanSummary(first.text), findings: [], usage }
 }
 
 /** Fold a call's usage into a running total (summing tokens/cost, counting calls). */
@@ -75,6 +74,27 @@ function addUsage(acc: TokenUsage | undefined, u: TokenUsage | undefined): Token
   }
 }
 
+/**
+ * Strip model noise from text meant for the summary: reasoning blocks, fenced code, and any raw
+ * contract JSON object ({...} containing "findings"). This is what stops the "json вариант" and the
+ * full prose dump from leaking into the UI above the structured cards.
+ */
+function stripNoise(raw: string): string {
+  let t = stripThink(raw).replace(/```[\s\S]*?```/g, ' ')
+  const a = t.indexOf('{')
+  const b = t.lastIndexOf('}')
+  if (a >= 0 && b > a && /"findings"/.test(t.slice(a, b + 1))) {
+    t = `${t.slice(0, a)} ${t.slice(b + 1)}`
+  }
+  return t.replace(/[ \t]{2,}/g, ' ').replace(/\n{3,}/g, '\n\n').trim()
+}
+
+/** A short, clean verdict shown beside structured findings (empty when there's nothing readable). */
+function shortVerdict(s: string): string {
+  return stripNoise(s).slice(0, 1200)
+}
+
+/** A longer, de-noised prose summary for when there are NO structured findings to show. */
 function cleanSummary(raw: string): string {
-  return stripThink(raw).slice(0, 4000)
+  return stripNoise(raw).slice(0, 4000)
 }
