@@ -5,13 +5,16 @@
 // Besides the native OS toast, the update state is broadcast to the renderer so the UI can show
 // an in-app banner with an "Обновить" button (see UpdateBanner.tsx). Guarded to packaged builds:
 // a dev run has no app-update.yml and process.execPath is the raw electron.exe.
-import { app, BrowserWindow, Notification } from 'electron'
+import { app, BrowserWindow } from 'electron'
 import { autoUpdater } from 'electron-updater'
 import { IPC } from '@shared/ipc'
+import { notifyUpdateAvailable } from './notify'
 import type { UpdateStatus } from '@shared/types'
 
 let started = false
 let status: UpdateStatus = { state: 'idle' }
+// The release we've already notified about, so repeated checks/downloads don't spam the list.
+let notifiedVersion = ''
 const SIX_HOURS = 6 * 60 * 60 * 1000
 
 function set(next: UpdateStatus): void {
@@ -41,11 +44,12 @@ export function initAutoUpdate(): void {
   )
   autoUpdater.on('update-downloaded', (info) => {
     set({ state: 'downloaded', version: info.version })
-    // The "push": a native toast even if no window is open right now.
-    new Notification({
-      title: 'Доступно обновление',
-      body: `Версия ${info.version} загружена. Откройте виджет и нажмите «Обновить».`
-    }).show()
+    // Notify once per release: a persistent entry in the «Уведомления» list (with the unread
+    // badge) plus a native toast, even if no window is open right now.
+    if (info.version && info.version !== notifiedVersion) {
+      notifiedVersion = info.version
+      notifyUpdateAvailable(info.version)
+    }
   })
   autoUpdater.on('error', (err) =>
     set({ state: 'error', error: err instanceof Error ? err.message : String(err) })

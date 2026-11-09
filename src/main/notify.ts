@@ -322,6 +322,27 @@ export function notifyMrCreated(
   if (n.push) raiseToast(event)
 }
 
+/**
+ * A notification that a new app version is ready to install (from the auto-updater). Lands in the
+ * «Уведомления» list (persisted, with the unread badge) and pops a toast. Deliberately NOT gated on
+ * the Jira-notifications master toggle — a new release is app-level news, not Jira noise — but the
+ * caller already dedupes per version so this fires once per release.
+ */
+export function notifyUpdateAvailable(version: string): void {
+  const event: NotificationEvent = {
+    id: randomUUID(),
+    type: 'update',
+    issueKey: 'Обновление',
+    issueSummary: `Вышла версия ${version} — готова к установке`,
+    text: 'нажмите «Обновить и перезапустить»',
+    url: '',
+    at: new Date().toISOString(),
+    read: false
+  }
+  const added = addEvents([event])
+  if (added.length > 0) raiseToast(event)
+}
+
 export function notifyAutoTransition(jiraKey: string, toStatus: string, reason: string): void {
   const { notifications: n } = getSettings()
   if (!n.enabled) return

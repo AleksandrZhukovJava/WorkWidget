@@ -339,7 +339,8 @@ let mockEvents = [
   { id: 'e3', type: 'status' as const, issueKey: 'OPS-1390', issueSummary: 'Клиент не получает письмо со сбросом пароля', text: 'To Do → In Progress', url: 'https://example.atlassian.net/browse/OPS-1390', at: new Date(now - 3600000).toISOString(), read: true },
   { id: 'e4', type: 'due' as const, issueKey: 'OPS-1355', issueSummary: 'Добавить экспорт отчёта в CSV', text: 'срок просрочен', url: 'https://example.atlassian.net/browse/OPS-1355', at: new Date(now - 7200000).toISOString(), read: true },
   { id: 'e5', type: 'mr' as const, issueKey: 'OPS-1421', issueSummary: 'feat(OPS-1421): fix billing sync', text: 'MR создан · !42', url: 'https://gitlab.example.com/demo/web-app/-/merge_requests/42', at: new Date(now - 120000).toISOString(), read: false },
-  { id: 'e6', type: 'vpn' as const, issueKey: 'VPN', issueSummary: 'VPN выключен', text: 'соединение разорвано', url: '', at: new Date(now - 60000).toISOString(), read: false }
+  { id: 'e6', type: 'vpn' as const, issueKey: 'VPN', issueSummary: 'VPN выключен', text: 'соединение разорвано', url: '', at: new Date(now - 60000).toISOString(), read: false },
+  { id: 'e7', type: 'update' as const, issueKey: 'Обновление', issueSummary: 'Вышла версия 0.1.34 — готова к установке', text: 'нажмите «Обновить и перезапустить»', url: '', at: new Date(now - 30000).toISOString(), read: false }
 ]
 
 function unreadEventCount(): number {
